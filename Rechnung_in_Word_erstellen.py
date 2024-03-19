@@ -47,47 +47,42 @@ allclientsnames.append(newclienttext)
 # name = answers["Name"]
 
 
-name = Einfügen_Routine.ask_many_multiple_choice_question(
+clientname = Einfügen_Routine.ask_many_multiple_choice_question(
     "Von welcher Person willst du die Rechnung ausdrucken?",
     allclientsnames
 )
-# name = "Emma Essl"
+# clientname = "Emma Essl"
 print("Ich mache die Rechnung für die Person:")
-print(name)
+print(clientname)
 newclient = False
-if name == newclienttext:
+if clientname == newclienttext:
     newclient = True
     #execute the input Routine
     print("Dann lass uns einen Eintrag in der KlientInnendaten Datei anlegen: ")
     clientdata = Einfügen_Routine.input_new_person(allclientdata_path)
-    name = clientdata["Name"]
+    clientname = clientdata["name"]
     print("Dann können wir auch hier gleich die letzten Stundendaten eintrage:")
-    namehourdata = Einfügen_Routine.insert_hourdata(allhourdata_path, name)
+    namehourdata = Einfügen_Routine.insert_hourdata(allhourdata_path, clientname)
     namehourdata["Minuten"] = [int(x) for x in namehourdata["Minuten"]]
 
 
 
 # prepare data
 if newclient == False:
-    namehourdata = allhourdata[allhourdata["Name"] == name] #select only the hours of the given name
+    namehourdata = allhourdata[allhourdata["Name"] == clientname] #select only the hours of the given name
     #namehourdata["Datum"] = list(map(lambda x: dateutil.parser.parse(x), namehourdata["Datum"]))
 
 
 
 #select with a calendar
-invoice_start_date, invoice_end_date = Einfügen_Routine.get_date()
+invoice_start_date, invoice_end_date = Einfügen_Routine.get_date(namehourdata)
+invoice_start_date = pd.to_datetime(invoice_start_date)
+invoice_end_date = pd.to_datetime(invoice_end_date)
 # invoice_start_date, invoice_end_date = datetime.datetime(2023,1,6), datetime.datetime(2023,2,27)
 
-print("Ich nehme alle Termine von " + name + " ab: " + invoice_start_date.strftime("%d.%m.%Y") + " bis zum " + invoice_end_date.strftime("%d.%m.%Y") )
-year_of_invoice = invoice_end_date.year
-basedir_data = f"C:\\Users\\rosma\\Documents\\Rechnungen\\{year_of_invoice}"
-if not os.path.isdir(basedir_data):
-    os.mkdir(basedir_data)
-else:
-    print(f"We already have a directory {basedir_data}")
+print("Ich nehme alle Termine von " + clientname + " ab: " + invoice_start_date.strftime("%d.%m.%Y") + " bis zum " + invoice_end_date.strftime("%d.%m.%Y") )
 
-archive_which_invoices_path =f"{basedir_data}\\Rechnungen {year_of_invoice}.xlsx"
-namehourdata = namehourdata[[invoice_end_date >= date >= invoice_start_date for date in namehourdata["Datum"]]]   #delete everything brfore lastinvoicegroup
+namehourdata = namehourdata[(namehourdata.Datum >= invoice_start_date)&(namehourdata.Datum <= invoice_end_date)]   #delete everything brfore lastinvoicegroup
 # take out only the selecte dates
 
 #get which invoicenumber
@@ -103,20 +98,19 @@ invoicenumberquestion_choices = [answer1, answer2]
 #     },
 #     ]
 # answers = prompt(questions)
-result = Einfügen_Routine.ask_multiple_choice_question(
-    "Wie willst du die Rechnungsnummer bestimmen?",
-    invoicenumberquestion_choices
-)
+result = Einfügen_Routine.get_selection("Möchtest du die Rechnungsnummer selbst eingeben?")
+print(result)
+# result = answer1
 
 
 # make invoicenumber
 lastinvoicenumber = int(invoicenumbers[-1][5:])
 lastinvoiceyear = int(invoicenumbers[-1][:4])
-if result == answer1:
+if not result:
 
     thisinvoicenumber = f"{invoice_end_date.year}-{(lastinvoicenumber + 1):03}"
     print("Das ist die Rechnungsnummer: " + thisinvoicenumber)
-if result == answer2:
+if result:
     root = tk.Tk()
     Einfügen_Routine.change_place_of_window(root)
     # withdraw() will make the parent window disappear.
@@ -126,11 +120,24 @@ if result == answer2:
                                                "Dann kannst du sie jetzt selber eingeben (in dem Format z.b. 2024-012):",
                                                parent=root)
     root.destroy()
-#
+
+year_of_invoice = invoice_end_date.year
+print(f"Year to link this invoice to: {year_of_invoice}")
+outputdir_path = os.path.join(supparentdir,f"{year_of_invoice}")
+
+if not os.path.isdir(outputdir_path):
+    os.mkdir(outputdir_path)
+else:
+    print(f"We already have a directory {outputdir_path}")
+
+
+outputfile_path = os.path.join(outputdir_path, f"RE {thisinvoicenumber} {clientname} {datetime.date.today().strftime('%d_%m_%Y')}.docx")
+archive_which_invoices_path = os.path.join(outputdir_path,f"Rechnungen {year_of_invoice}.xlsx")
+print(f"Now i can create the outputdata filepaths:   \n{archive_which_invoices_path}\n{outputfile_path}")
 
 if newclient == False:
 
-    clientdata = allclientdata[name].to_dict()[1]
+    clientdata = allclientdata[clientname].to_dict()[1]
     print("Die Patientendaten sind:")
     pprint.pprint(clientdata)
 
@@ -159,7 +166,6 @@ if clientdata["Kind"] == "ja":
 # input the client data  in word
 doc = DocxTemplate(template_path)
 doc.render(clientdata)
-outputfile_path = os.path.join(base_dir / outputdir_path, "RE " + thisinvoicenumber + " " + name + " "+ datetime.date.today().strftime("%d.%m.%Y") + ".docx")
 doc.save(outputfile_path)
 
 ## input the hour table in word
@@ -169,7 +175,7 @@ doc.tables #a list of all tables in document
 
 # prepare the hour table
 amountpersession = namehourdata["Minuten"].apply(lambda x: round(x * float(clientdata["Stundensatz"])/60, 1))
-amountpersession.rename("Betrag pro Einheit")
+amountpersession = amountpersession.rename("Betrag_pro_Einheit")
 
 wordtable = pd.concat([namehourdata["Datum"].apply(lambda x: x.strftime("%d.%m.%Y")), namehourdata["Minuten"].apply(lambda x: str(x) + " min"), amountpersession.apply(lambda x: "%0.2f" % x + " €") ], axis=1)
 print("Die Stunden sind: " )
@@ -180,8 +186,8 @@ print(wordtable)
 for index, row in wordtable.iterrows():
     hourdatatable = doc.tables[0]   #so hourdatatable is the first table in the document
     data_row = hourdatatable.add_row().cells
-    for i in range(0,len(row)):
-            data_row[i].text = row[i]
+    for i,(name,entry) in enumerate(row.items()):
+            data_row[i].text = entry
 #format it
 for row in doc.tables[0].rows:
     row.height = Cm(0.8)
@@ -194,29 +200,27 @@ totalamount = sum(np.array(amountpersession))
 totalamountstring = (str(totalamount)+"0").replace(".",",")
 doc.tables[1].cell(0, 2).text = str(totalamount) + "0" + " €"
 
-doc.save(outputfile_path)
+clientdata["Stundeninfo"] = wordtable
+save_or_not = Einfügen_Routine.ask_to_save_with_dict(clientdata)
+print(save_or_not)
+if save_or_not:
+    print(f"Save word file to {outputfile_path}")
+    doc.save(outputfile_path)
+    # In the end we update the metadata
+    with open(invoicenumber_path, 'a') as f:
+        if lastinvoiceyear == int(datetime.date.today().strftime("%Y")):
+            f.write(thisinvoicenumber + "\n" )
+        else:
+            f.write(datetime.date.today().strftime("%Y") + "-" + str(1) + "\n")
 
 
-# In the end we update the metadata
-with open(invoicenumber_path, 'a') as f:
-    if lastinvoiceyear == int(datetime.date.today().strftime("%Y")):
-        f.write(thisinvoicenumber + "\n" )
-    else:
-        f.write(datetime.date.today().strftime("%Y") + "-" + str(1) + "\n")
+
+    #write what I did in the archive
+    summe = totalamountstring + " €"
+    Einfügen_Routine.save_to_archive(thisinvoicenumber,clientdata["Heute"],clientname,invoice_start_date,invoice_end_date,summe,archive_which_invoices_path)
+
+    print(f"\n Die Rechnung wurde in einem Word Dokument erstellt, zu finden unter Desktop -> Rechnungen-Verknüpfung -> Jahr {year_of_invoice}")
 
 
-
-
-
-#with open(lastinvoice_path, 'a') as f:  #add the current date to the txt file so that the invoices which we did now will not show up the next time
-#     f.write(name + ", " + today.strftime("%Y-%m-%d") + "\n" )
-
-#write what I did in the archive
-summe = totalamountstring + " €"
-Einfügen_Routine.save_to_archive(thisinvoicenumber,clientdata["Heute"],name,invoice_start_date,invoice_end_date,summe,archive_which_invoices_path)
-
-print("\n Die Rechnung wurde in einem Word Dokument erstellt, zu finden unter Desktop -> Rechnungen-Verknüpfung -> Rechnungsprogramm -> Rechnung. ")
-
-
-os.startfile(archive_which_invoices_path)
-os.startfile(outputfile_path)
+    os.startfile(archive_which_invoices_path)
+    os.startfile(outputfile_path)

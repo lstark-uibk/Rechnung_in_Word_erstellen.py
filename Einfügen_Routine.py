@@ -1,4 +1,5 @@
 from tkinter import *
+from tkcalendar import Calendar, DateEntry
 from pathlib import Path
 import pandas as pd
 import openpyxl
@@ -12,6 +13,7 @@ from PyInquirer import prompt
 import pprint
 import Einfügen_Routine
 import dateutil.parser
+from tkinter import messagebox
 
 
 def change_place_of_window(root):
@@ -29,17 +31,19 @@ def change_place_of_window(root):
     # and where it is placed
     root.geometry('%dx%d+%d+%d' % (w, h, x, y))
 
-def ask_multiple_choice_question(prompt, options):
-    root = Tk()
-    change_place_of_window(root)
-    if prompt:
-        Label(root, text=prompt, font=("Helvetica", 14) ).pack()
-    v = IntVar()
-    for i, option in enumerate(options):
-        Radiobutton(root, text=option, variable=v, value=i, font=("Helvetica", 14) ).pack(anchor="w")
-    tk.Button(text="OK", command=root.destroy,font=("Helvetica", 14) ).pack()
-    root.mainloop()
-    return options[v.get()]
+
+
+def get_selection(title):
+
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+
+    # Prompt the user with a message box
+    response = messagebox.askyesno("Eingeben?", title)
+
+    # Return the user's response
+    return response
+
 
 
 # das ist alles für den ask many multiple questions
@@ -143,10 +147,44 @@ def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoic
 
 
 
-def get_date():
+
+def show_dict_window(data_dict, root, title):
+    window = tk.Toplevel(root)
+    window.title(title)
+
+    text_widget = tk.Text(window, wrap='word')
+    text_widget.pack(expand=True, fill='both')
+
+    for key, value in data_dict.items():
+        text_widget.insert('end', f"{key}: {value}\n")
+
+    text_widget.config(state='disabled')
+
+    # Position the window beside the main window
+    window.geometry(f"+{root.winfo_rootx() + root.winfo_width()}+{root.winfo_rooty()}")
+
+    return window
+
+def ask_to_save_with_dict(data_dict):
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    dict_window = show_dict_window(data_dict, root, "Patienteninfos")
+
+
+    # Prompt the user with a message box
+    response = messagebox.askyesno("Speichern?", "Erstelle Rechnungen mit den folgenden Infos?")
+
+    # Destroy the window after user interaction
+    dict_window.destroy()
+
+    # Return the user's response
+    return response
+
+
+def get_date(hourdata):
     import tkinter as tk
     from tkinter import ttk
-    from tkcalendar import Calendar, DateEntry
+
 
     def cal_done():
         top.withdraw()
@@ -173,9 +211,11 @@ def get_date():
     cal2.pack(fill="both", expand=True)
 
     tk.Button(top, text="ok",height=2, width=20, font="Arial 14", command=cal_done).pack()
-
+    data_dict = {"": hourdata}
+    dict_window = show_dict_window(data_dict, top, "Stundendaten")
     selected_date = None
     root.mainloop()
+    dict_window.destroy()
     return cal1.selection_get(), cal2.selection_get()
 
 
@@ -326,3 +366,6 @@ def insert_hourdata(allhourdata_path,clientname):
     namehourdata.columns = ['Datum', 'Name', 'Minuten']
 
     return(namehourdata)
+
+
+# start,end = get_date()
