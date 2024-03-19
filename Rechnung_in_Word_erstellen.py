@@ -15,16 +15,15 @@ import dateutil.parser
 import tkinter as tk
 
 
-base_dir = Path(__file__).parent
-
-template_path = base_dir / "Vorlage.docx"
-allhourdata_path = base_dir / "Stundendaten.xlsx"
-allclientdata_path = base_dir / "PatientInneninformationen.xlsx"
-outputdir_path = base_dir / "Rechnungen"
-invoicenumber_path = base_dir / "Metadaten//Rechnungsnummern.txt"
+base_dir = current_directory = os.getcwd()
+parent_dir = os.path.dirname(base_dir)
+supparentdir = os.path.dirname(parent_dir)
+template_path = os.path.join(parent_dir,"Vorlage.docx")
+allhourdata_path = os.path.join(parent_dir ,"Stundendaten.xlsx")
+allclientdata_path = os.path.join(parent_dir ,"PatientInneninformationen.xlsx")
+invoicenumber_path = os.path.join(parent_dir ,"Metadaten//Rechnungsnummern.txt")
+outputdir_path = 0
 archive_which_invoices_path = 0
-
-outputdir_path.mkdir(exist_ok=True)
 
 # read in
 allhourdata = pd.read_excel(allhourdata_path, parse_dates=[0])
