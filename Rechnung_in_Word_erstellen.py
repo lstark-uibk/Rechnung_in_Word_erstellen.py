@@ -1,5 +1,6 @@
 from pathlib import Path
 from docxtpl import DocxTemplate
+import openpyxl
 import pandas as pd
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx import Document
@@ -19,11 +20,13 @@ base_dir = current_directory = os.getcwd()
 parent_dir = os.path.dirname(base_dir)
 supparentdir = os.path.dirname(parent_dir)
 template_path = os.path.join(parent_dir,"Vorlage.docx")
+excel_template_path = os.path.join(parent_dir,"Jahresübersicht_Vorlage.xlsx")
 allhourdata_path = os.path.join(parent_dir ,"Stundendaten.xlsx")
 allclientdata_path = os.path.join(parent_dir ,"PatientInneninformationen.xlsx")
 invoicenumber_path = os.path.join(parent_dir ,"Metadaten//Rechnungsnummern.txt")
 outputdir_path = 0
 archive_which_invoices_path = 0
+
 
 # read in
 allhourdata = pd.read_excel(allhourdata_path, parse_dates=[0])
@@ -133,6 +136,7 @@ else:
 
 outputfile_path = os.path.join(outputdir_path, f"RE {thisinvoicenumber} {clientname} {datetime.date.today().strftime('%d_%m_%Y')}.docx")
 archive_which_invoices_path = os.path.join(outputdir_path,f"Rechnungen {year_of_invoice}.xlsx")
+
 print(f"Now i can create the outputdata filepaths:   \n{archive_which_invoices_path}\n{outputfile_path}")
 
 if newclient == False:
@@ -212,9 +216,15 @@ if save_or_not:
             f.write(thisinvoicenumber + "\n" )
         else:
             f.write(datetime.date.today().strftime("%Y") + "-" + str(1) + "\n")
-
-
-
+    #if there is no archive excel yet create one
+    if not os.path.exists(archive_which_invoices_path):
+        print(f"Because there was no Archive file of the year create one at {archive_which_invoices_path}")
+        wb = openpyxl.load_workbook(excel_template_path)
+        # Select the worksheet
+        sheet = wb["Tabelle1"]
+        # Modify the cell
+        sheet["A1"] = f"Rechnungen {year_of_invoice}"
+        wb.save(archive_which_invoices_path)
     #write what I did in the archive
     summe = totalamountstring + " €"
     Einfügen_Routine.save_to_archive(thisinvoicenumber,clientdata["Heute"],clientname,invoice_start_date,invoice_end_date,summe,archive_which_invoices_path)
