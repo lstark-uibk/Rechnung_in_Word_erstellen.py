@@ -32,22 +32,14 @@ archive_which_invoices_path = 0
 allhourdata = pd.read_excel(allhourdata_path, parse_dates=[0])
 allclientdata = pd.read_excel(allclientdata_path, index_col=0, header=None, sheet_name=None)
 invoicenumbers = pd.read_csv(invoicenumber_path, header=None)[0].values.tolist()
+invoicenumber_pattern = r'(\d{4})-(\d+)'
+invoicenumbers[["Jahr","Nummer"]] = invoicenumbers["Rechnungsjahr-nummer"].str.extract(invoicenumber_pattern).astype(int)
 
 #select which client
 allclientsnames = list(allclientdata.keys())
 allclientsnames.sort()
 newclienttext = "Keiner der obigen Personen -> mach neue Person"
 allclientsnames.append(newclienttext)
-# questions = [
-#     {
-#         'type': 'list',
-#         'name': 'Name',
-#         'message': 'Von welchem Klienten willst du die Rechnung erstellen?',
-#         'choices': allclientsnames,
-#     },
-#     ]2023-079
-# answers = prompt(questions)
-# name = answers["Name"]
 
 
 clientname = Einfügen_Routine.ask_many_multiple_choice_question(
@@ -104,11 +96,9 @@ invoicenumberquestion_choices = [answer1, answer2]
 result = Einfügen_Routine.get_selection("Möchtest du die Rechnungsnummer selbst eingeben?")
 print(result)
 # result = answer1
-
-
 # make invoicenumber
-lastinvoicenumber = int(invoicenumbers[-1][5:])
-lastinvoiceyear = int(invoicenumbers[-1][:4])
+lastinvoiceyear = invoicenumbers["Jahr"].iloc[-1]
+lastinvoicenumber = invoicenumbers["Nummer"].iloc[-1]
 if not result:
 
     thisinvoicenumber = f"{invoice_end_date.year}-{(lastinvoicenumber + 1):03}"
