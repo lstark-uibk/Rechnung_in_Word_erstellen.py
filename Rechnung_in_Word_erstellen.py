@@ -234,3 +234,5 @@ if save_or_not:
 
     os.startfile(archive_which_invoices_path)
     os.startfile(outputfile_path)
+else:
+    print("Didnot save anything")
