@@ -31,7 +31,7 @@ archive_which_invoices_path = 0
 # read in
 allhourdata = pd.read_excel(allhourdata_path, parse_dates=[0])
 allclientdata = pd.read_excel(allclientdata_path, index_col=0, header=None, sheet_name=None)
-invoicenumbers = pd.read_csv(invoicenumber_path, header=None)[0].values.tolist()
+invoicenumbers = pd.read_csv(invoicenumber_path, header=None,names=["Rechnungsjahr-nummer"])
 invoicenumber_pattern = r'(\d{4})-(\d+)'
 invoicenumbers[["Jahr","Nummer"]] = invoicenumbers["Rechnungsjahr-nummer"].str.extract(invoicenumber_pattern).astype(int)
 
@@ -84,15 +84,7 @@ namehourdata = namehourdata[(namehourdata.Datum >= invoice_start_date)&(namehour
 answer1 = "Nimm einfach die Nächste in der Reihe"
 answer2 = "Ich möchte sie selber eingeben"
 invoicenumberquestion_choices = [answer1, answer2]
-# questions = [
-#     {
-#         'type': 'list',
-#         'name': 'Name',
-#         'message': 'Wie willst du die Rechnungsnummer bestimmen?',
-#         'choices': invoicenumberquestion_choices,
-#     },
-#     ]
-# answers = prompt(questions)
+
 result = Einfügen_Routine.get_selection("Möchtest du die Rechnungsnummer selbst eingeben?")
 print(result)
 # result = answer1
