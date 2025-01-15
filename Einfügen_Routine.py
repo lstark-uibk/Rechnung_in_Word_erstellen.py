@@ -130,33 +130,61 @@ def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoic
     ws_archive_which_invoices = openpyxl.load_workbook(archive_which_invoices_path)
     archive_which_invoices = ws_archive_which_invoices.worksheets[0]
     invoiceduration = invoice_start_date.strftime("%d.%m.%Y") + " - " + invoice_end_date.strftime("%d.%m.%Y")
+    #datetoday = datetime.datetime.strptime(datetoday, "%d.%m.%Y")
     inputdata = [invoicenumber,datetoday, clientname, invoiceduration, summe]
 
-    x = True
-    for i in range(1, archive_which_invoices.max_row):
-        # define emptiness of cell
-        if x == True:
-            if archive_which_invoices.cell(i, 1).value is None:
-                archive_which_invoices.insert_rows(i, amount=1)
-                for col, value in zip(range(1,len(inputdata)+1), inputdata):
-                    archive_which_invoices.cell(row=i, column=col, value=value)
-                x = False
+    last_row = archive_which_invoices.max_row
+    last_row_data = 0 #last row of invoice data (not sums etc)
+    sumrow = True
+    i = last_row
+    while True:
+        if sumrow:
+            if archive_which_invoices.cell(i, 1).value is not None: # check whether there is a sum row
+                i -=1
+            else:
+                sumrow = False
+        else:
+            if archive_which_invoices.cell(i, 1).value is None:  # check whether there is an empty row over a sum row
+                i -= 1
+            else:
+                print(f"last datarow = {i}, {[cell.value for cell in archive_which_invoices[i]]}")
+                last_row_data = i
+                break
+    archive_which_invoices.insert_rows(last_row_data+1)
+    last_row = archive_which_invoices.max_row
+    for col, value in zip(range(1, len(inputdata) + 1), inputdata):
+        archive_which_invoices.cell(row=last_row_data+1, column=col, value=value)
+        archive_which_invoices.cell(last_row_data+1,5).number_format = '€* #,##0.00'
+        archive_which_invoices.cell(last_row_data+1,2).number_format = 'DD.MM.YYYY'
+
+    cell_sum_invoiced = archive_which_invoices.cell(last_row-1, 5)
+    cell_sum_paid = archive_which_invoices.cell(last_row-1, 7)
+    cell_diff_inv_paid = archive_which_invoices.cell(last_row, 7)
+
+    cell_sum_invoiced.value = f"=SUM(E2:E{last_row-2})"
+    cell_sum_paid.value = f"=SUM(G2:G{last_row-2})"
+    cell_diff_inv_paid.value = f"=E{last_row-1}-G{last_row-1}"
 
 
+
+    print(f"Saved the archive excel to: {archive_which_invoices_path}")
     ws_archive_which_invoices.save(archive_which_invoices_path)
 
 
 
 
-def show_dict_window(data_dict, root, title):
+def show_dict_window(data_dict, root, title, lastdate = 0):
     window = tk.Toplevel(root)
     window.title(title)
 
     text_widget = tk.Text(window, wrap='word')
     text_widget.pack(expand=True, fill='both')
-
+    if lastdate:
+        text_widget.insert('end', f"Die letze Rechnung wurde am {lastdate} erstellt\n")
     for key, value in data_dict.items():
         text_widget.insert('end', f"{key}: {value}\n")
+
+
 
     text_widget.config(state='disabled')
 
@@ -181,7 +209,7 @@ def ask_to_save_with_dict(data_dict):
     return response
 
 
-def get_date(hourdata):
+def get_date(hourdata,lastdate):
     import tkinter as tk
     from tkinter import ttk
 
@@ -212,7 +240,7 @@ def get_date(hourdata):
 
     tk.Button(top, text="ok",height=2, width=20, font="Arial 14", command=cal_done).pack()
     data_dict = {"": hourdata}
-    dict_window = show_dict_window(data_dict, top, "Stundendaten")
+    dict_window = show_dict_window(data_dict, top, "Stundendaten", lastdate=lastdate )
     selected_date = None
     root.mainloop()
     dict_window.destroy()

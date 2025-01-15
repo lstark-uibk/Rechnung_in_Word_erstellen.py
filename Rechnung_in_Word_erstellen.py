@@ -7,7 +7,7 @@ from docx import Document
 from docx.shared import Cm
 import os
 import numpy as np
-from datetime import date
+import re
 import datetime
 from PyInquirer import prompt
 import pprint
@@ -16,14 +16,12 @@ import dateutil.parser
 import tkinter as tk
 
 
-base_dir = current_directory = os.getcwd()
-parent_dir = os.path.dirname(base_dir)
+parent_dir = "C:\\Users\\rosma\\Documents\\Rechnungen\\Rechnungsprogramm"
 supparentdir = os.path.dirname(parent_dir)
 template_path = os.path.join(parent_dir,"Vorlage.docx")
 excel_template_path = os.path.join(parent_dir,"Jahresübersicht_Vorlage.xlsx")
 allhourdata_path = os.path.join(parent_dir ,"Stundendaten.xlsx")
 allclientdata_path = os.path.join(parent_dir ,"PatientInneninformationen.xlsx")
-invoicenumber_path = os.path.join(parent_dir ,"Metadaten//Rechnungsnummern.txt")
 outputdir_path = 0
 archive_which_invoices_path = 0
 
@@ -31,9 +29,7 @@ archive_which_invoices_path = 0
 # read in
 allhourdata = pd.read_excel(allhourdata_path, parse_dates=[0])
 allclientdata = pd.read_excel(allclientdata_path, index_col=0, header=None, sheet_name=None)
-invoicenumbers = pd.read_csv(invoicenumber_path, header=None,names=["Rechnungsjahr-nummer"])
-invoicenumber_pattern = r'(\d{4})-(\d+)'
-invoicenumbers[["Jahr","Nummer"]] = invoicenumbers["Rechnungsjahr-nummer"].str.extract(invoicenumber_pattern).astype(int)
+
 
 #select which client
 allclientsnames = list(allclientdata.keys())
@@ -68,9 +64,17 @@ if newclient == False:
     #namehourdata["Datum"] = list(map(lambda x: dateutil.parser.parse(x), namehourdata["Datum"]))
 
 
-
+try:
+    outputdir_path = os.path.join(supparentdir, f"{datetime.datetime.today().year}")
+    archive_which_invoices_path = os.path.join(outputdir_path, f"Rechnungen {datetime.datetime.today().year}.xlsx")
+    archive =pd.read_excel(archive_which_invoices_path)
+    invoicetime_last = archive.iloc[:,1][archive.iloc[:,2] == clientname].values[-1]
+    print("got last invoice times")
+except:
+    print("no last invoice times")
+    invoicetime_last = 0
 #select with a calendar
-invoice_start_date, invoice_end_date = Einfügen_Routine.get_date(namehourdata)
+invoice_start_date, invoice_end_date = Einfügen_Routine.get_date(namehourdata,invoicetime_last)
 invoice_start_date = pd.to_datetime(invoice_start_date)
 invoice_end_date = pd.to_datetime(invoice_end_date)
 # invoice_start_date, invoice_end_date = datetime.datetime(2023,1,6), datetime.datetime(2023,2,27)
@@ -78,22 +82,55 @@ invoice_end_date = pd.to_datetime(invoice_end_date)
 print("Ich nehme alle Termine von " + clientname + " ab: " + invoice_start_date.strftime("%d.%m.%Y") + " bis zum " + invoice_end_date.strftime("%d.%m.%Y") )
 
 namehourdata = namehourdata[(namehourdata.Datum >= invoice_start_date)&(namehourdata.Datum <= invoice_end_date)]   #delete everything brfore lastinvoicegroup
-# take out only the selecte dates
+
+# get the invoice archive or make new archive
+year_of_invoice = invoice_end_date.year
+print(f"Year to link this invoice to: {year_of_invoice}")
+outputdir_path = os.path.join(supparentdir,f"{year_of_invoice}")
+if not os.path.exists(outputdir_path):
+    os.mkdir(outputdir_path)
+
+archive_which_invoices_path = os.path.join(outputdir_path,f"Rechnungen {year_of_invoice}.xlsx")
+
+if not os.path.exists(archive_which_invoices_path):
+    print(f"Because there was no Archive file of the year create one at {archive_which_invoices_path}")
+    wb = openpyxl.load_workbook(excel_template_path)
+    # Select the worksheet
+    sheet = wb["Tabelle1"]
+    # Modify the cell
+    sheet["A1"] = f"Rechnungen {year_of_invoice}"
+    wb.save(archive_which_invoices_path)
+    lastinvoice_year_num = f"{year_of_invoice}-001"
+    lastinvoice_year = year_of_invoice
+    lastinvoice_num = 1
+
+
+invoicenumbers = pd.read_excel(archive_which_invoices_path).iloc[:-2,0] # get the invoice numbers out of the invoice archive
+# search for the first invoicenumer which fits the pattern
+invoicenumber_pattern = r'(\d{4})-(\d+)'
+for index, entry in invoicenumbers.iloc[::-1].items():
+    if not pd.isnull(entry):
+        if re.match(invoicenumber_pattern, entry):
+            lastinvoice_year_num = re.match(invoicenumber_pattern, entry)[0]
+            lastinvoice_year = int(re.match(invoicenumber_pattern, entry)[1])
+            lastinvoice_num = int(re.match(invoicenumber_pattern, entry)[2])
+            break
+
+
 
 #get which invoicenumber
 answer1 = "Nimm einfach die Nächste in der Reihe"
 answer2 = "Ich möchte sie selber eingeben"
 invoicenumberquestion_choices = [answer1, answer2]
 
-result = Einfügen_Routine.get_selection("Möchtest du die Rechnungsnummer selbst eingeben?")
+thisinvoicenumber_suggestion = f"{invoice_end_date.year}-{(lastinvoice_num + 1):03}"
+result = Einfügen_Routine.get_selection(f"Die nächste Rechnungsnummer wäre {thisinvoicenumber_suggestion}. Möchtest du die Rechnungsnummer ändern und die Nummer selbst eingeben?")
 print(result)
 # result = answer1
 # make invoicenumber
-lastinvoiceyear = invoicenumbers["Jahr"].iloc[-1]
-lastinvoicenumber = invoicenumbers["Nummer"].iloc[-1]
 if not result:
 
-    thisinvoicenumber = f"{invoice_end_date.year}-{(lastinvoicenumber + 1):03}"
+    thisinvoicenumber = thisinvoicenumber_suggestion
     print("Das ist die Rechnungsnummer: " + thisinvoicenumber)
 if result:
     root = tk.Tk()
@@ -106,9 +143,17 @@ if result:
                                                parent=root)
     root.destroy()
 
-year_of_invoice = invoice_end_date.year
-print(f"Year to link this invoice to: {year_of_invoice}")
-outputdir_path = os.path.join(supparentdir,f"{year_of_invoice}")
+    while not re.match(invoicenumber_pattern,thisinvoicenumber):
+        root = tk.Tk()
+        Einfügen_Routine.change_place_of_window(root)
+        # withdraw() will make the parent window disappear.
+        root.withdraw()
+        # shows a dialogue with a string input field
+        thisinvoicenumber = tk.simpledialog.askstring('Rechnungsnummer',
+                                                   "Die letze eingetragen Rechnungsnummer hatte nicht das richtige Format. \nGib sie in dem Format ein wie 2024-001 wobei die erste Nummer mit dem Jahr der Rechnung ersetzt wird und die zweite mit der Rechnungsnummer:",
+                                                   parent=root)
+        root.destroy()
+
 
 if not os.path.isdir(outputdir_path):
     os.mkdir(outputdir_path)
@@ -117,7 +162,6 @@ else:
 
 
 outputfile_path = os.path.join(outputdir_path, f"RE {thisinvoicenumber} {clientname} {datetime.date.today().strftime('%d_%m_%Y')}.docx")
-archive_which_invoices_path = os.path.join(outputdir_path,f"Rechnungen {year_of_invoice}.xlsx")
 
 print(f"Now i can create the outputdata filepaths:   \n{archive_which_invoices_path}\n{outputfile_path}")
 
@@ -142,10 +186,10 @@ clientdata["Heute"] = datetime.date.today().strftime("%d.%m.%Y")
 if clientdata["Kind"] == "ja":
     if clientdata["Geschlecht"] == "m":
         clientfirstname = clientdata["Name"].split()[0]
-        clientdata["Wordkindtext"] = "für ihren Sohn " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
+        clientdata["Wordkindtext"] = " für Ihren Sohn " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
     if clientdata["Geschlecht"] == "w":
         clientfirstname = clientdata["Name"].split()[0]
-        clientdata["Wordkindtext"] = "für ihre Tochter " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
+        clientdata["Wordkindtext"] = " für Ihre Tochter " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
 
 
 
@@ -180,7 +224,6 @@ for row in doc.tables[0].rows:
     row.alignment = WD_TABLE_ALIGNMENT.CENTER
 
 
-
 #insert total amount into tables[1]
 totalamount = sum(np.array(amountpersession))
 totalamountstring = (str(totalamount)+"0").replace(".",",")
@@ -192,24 +235,29 @@ print(save_or_not)
 if save_or_not:
     print(f"Save word file to {outputfile_path}")
     doc.save(outputfile_path)
-    # In the end we update the metadata
-    with open(invoicenumber_path, 'a') as f:
-        if lastinvoiceyear == int(datetime.date.today().strftime("%Y")):
-            f.write(thisinvoicenumber + "\n" )
-        else:
-            f.write(datetime.date.today().strftime("%Y") + "-" + str(1) + "\n")
-    #if there is no archive excel yet create one
-    if not os.path.exists(archive_which_invoices_path):
-        print(f"Because there was no Archive file of the year create one at {archive_which_invoices_path}")
-        wb = openpyxl.load_workbook(excel_template_path)
-        # Select the worksheet
-        sheet = wb["Tabelle1"]
-        # Modify the cell
-        sheet["A1"] = f"Rechnungen {year_of_invoice}"
-        wb.save(archive_which_invoices_path)
+
     #write what I did in the archive
-    summe = totalamountstring + " €"
-    Einfügen_Routine.save_to_archive(thisinvoicenumber,clientdata["Heute"],clientname,invoice_start_date,invoice_end_date,summe,archive_which_invoices_path)
+    try_saving = True
+    while try_saving:
+        try:
+            Einfügen_Routine.save_to_archive(thisinvoicenumber,clientdata["Heute"],clientname,invoice_start_date,invoice_end_date,totalamount,archive_which_invoices_path)
+            try_saving = False
+        except:
+            def show_alert():
+                # Display an alert message box with an "Okay" button
+                tk.messagebox.showinfo("Fehler", f"Ich konnte die Excel nicht speichern. Schließe zuerst die Datei {archive_which_invoices_path}")
+            print("error in saving archive")
+            root = tk.Tk()
+            root.withdraw()  # Hide the main window
+
+            # Show the alert
+            show_alert()
+
+            # Continue with the rest of the code after the alert
+            print("The alert has been dismissed. Continuing with the rest of the code...")
+
+            # Close the Tkinter application
+            root.quit()
 
     print(f"\n Die Rechnung wurde in einem Word Dokument erstellt, zu finden unter Desktop -> Rechnungen-Verknüpfung -> Jahr {year_of_invoice}")
 
