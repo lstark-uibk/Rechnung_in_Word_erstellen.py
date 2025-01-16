@@ -3,19 +3,107 @@ from tkcalendar import Calendar, DateEntry
 from pathlib import Path
 import pandas as pd
 import openpyxl
-import pprint
+import os
 import dateutil.parser
 import datetime
 import tkinter as tk
 from tkinter import ttk
 from tkinter import simpledialog
-from PyInquirer import prompt
+# from PyInquirer import prompt
 import pprint
-import Einfügen_Routine
-import dateutil.parser
+import re
 from tkinter import messagebox
 
+def check_invoice_archive(year_of_invoice,supparentdir,invoice_achive_template_path,invoicenumber_pattern):
+    print(f"Year to link this invoice to: {year_of_invoice}")
+    outputdir_path = os.path.join(supparentdir,f"{year_of_invoice}")
+    if not os.path.exists(outputdir_path):
+        os.mkdir(outputdir_path)
 
+    archive_which_invoices_path = os.path.join(outputdir_path,f"Rechnungen {year_of_invoice}.xlsx")
+
+    if not os.path.exists(archive_which_invoices_path):
+        print(f"Because there was no Archive file of the year create one at {archive_which_invoices_path}")
+        wb = openpyxl.load_workbook(invoice_achive_template_path)
+        # Select the worksheet
+        sheet = wb["Tabelle1"]
+        # Modify the cell
+        sheet["A1"] = f"Rechnungen {year_of_invoice}"
+        wb.save(archive_which_invoices_path)
+        lastinvoice_year_num = f"{year_of_invoice}-001"
+        lastinvoice_year = year_of_invoice
+        lastinvoice_num = 1
+
+    invoicenumbers = pd.read_excel(archive_which_invoices_path).iloc[:-2,0] # get the invoice numbers out of the invoice archive
+    # search for the first invoicenumer which fits the pattern
+    invoicenumber_pattern = invoicenumber_pattern
+    lastinvoice_num = 0
+    for index, entry in invoicenumbers.iloc[::-1].items():
+        if not pd.isnull(entry):
+            if re.match(invoicenumber_pattern, entry):
+                lastinvoice_year_num = re.match(invoicenumber_pattern, entry)[0]
+                lastinvoice_year = int(re.match(invoicenumber_pattern, entry)[1])
+                lastinvoice_num = int(re.match(invoicenumber_pattern, entry)[2])
+                break
+    return lastinvoice_num
+
+def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_pattern,Tirol = False):
+    #get which invoicenumber
+    answer1 = "Nimm einfach die Nächste in der Reihe"
+    answer2 = "Ich möchte sie selber eingeben"
+    invoicenumberquestion_choices = [answer1, answer2]
+    thisinvoicenumber = ""
+    while not thisinvoicenumber:
+        if Tirol:
+            lastinvoicenumber_suggestion = f"T{invoiceyear}-{(lastinvoice_num):03}"
+            thisinvoicenumber_suggestion = f"T{invoiceyear}-{(lastinvoice_num + 1):03}"
+            formatexample = "T2024-012"
+        else:
+            lastinvoicenumber_suggestion = f"{invoiceyear}-{(lastinvoice_num):03}"
+            thisinvoicenumber_suggestion = f"{invoiceyear}-{(lastinvoice_num + 1):03}"
+            formatexample = "2024-012"
+
+        result = get_selection(f"Die letzte Rechnungsnummer war {lastinvoicenumber_suggestion}. \nSomit wäre die nächste Rechnungsnummer {thisinvoicenumber_suggestion}. \nMöchtest du die Rechnungsnummer ändern und die Nummer selbst eingeben?")
+
+        if not result:
+
+            thisinvoicenumber = thisinvoicenumber_suggestion
+            print("Das ist die Rechnungsnummer: " + thisinvoicenumber)
+        if result:
+            root = tk.Tk()
+            change_place_of_window(root)
+            # withdraw() will make the parent window disappear.
+            root.withdraw()
+            # shows a dialogue with a string input field
+            thisinvoicenumber = tk.simpledialog.askstring('Rechnungsnummer',
+                                                       f"Dann kannst du sie jetzt selber eingeben (in dem Format z.b. {formatexample}):",
+                                                       parent=root)
+            root.destroy()
+            if not thisinvoicenumber:
+                continue
+
+            while not re.match(invoicenumber_pattern,thisinvoicenumber):
+                root = tk.Tk()
+                change_place_of_window(root)
+                # withdraw() will make the parent window disappear.
+                root.withdraw()
+                # shows a dialogue with a string input field
+                thisinvoicenumber = tk.simpledialog.askstring('Rechnungsnummer',
+                                                           "Die letze eingetragen Rechnungsnummer hatte nicht das richtige Format. \nGib sie in dem Format ein wie 2024-001 wobei die erste Nummer mit dem Jahr der Rechnung ersetzt wird und die zweite mit der Rechnungsnummer:",
+                                                           parent=root)
+                root.destroy()
+    return thisinvoicenumber
+def validate_input_int(char, input_value):
+    """Function to validate input - allows only integer values."""
+    # If the input is empty, it's valid (so the user can delete the input).
+    if input_value == "":
+        return True
+    try:
+        # Try to convert the input value to an integer
+        int(input_value)
+        return True
+    except ValueError:
+        return False
 def change_place_of_window(root):
     w = 800  # width for the Tk root
     h = 650  # height for the Tk root
