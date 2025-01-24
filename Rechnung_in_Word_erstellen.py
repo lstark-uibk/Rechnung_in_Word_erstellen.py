@@ -24,8 +24,8 @@ supparentdir = os.path.dirname(parent_dir)
 template_praxis_path = os.path.join(parent_dir,"Vorlage.docx")
 template_tirol_path = os.path.join(parent_dir,"Abrechnung_TherapeutInnen_mit_Ausgleichssatz_ab_01.01.2024-2.xlsx")
 excel_template_path = os.path.join(parent_dir,"Jahresübersicht_Vorlage.xlsx")
-allhourdata_path = os.path.join(parent_dir ,"Stundendaten.xlsx")
-allclientdata_path = os.path.join(parent_dir ,"PatientInneninformationen.xlsx")
+allhourdata_path = os.path.join(supparentdir ,"Daten\\Stundendaten.xlsx")
+allclientdata_path = os.path.join(supparentdir ,"Daten\\PatientInneninformationen.xlsx")
 outputdir_path = 0
 archive_which_invoices_path = 0
 
