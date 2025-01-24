@@ -20,6 +20,8 @@ from  Rechnung_Praxis import make_invoice_praxis
 from Rechnung_Tirol import make_invoice_tirol
 
 parent_dir = "C:\\Users\\peaq\\Documents\\Programm Logo\\Programm"
+print( "Programm für Brigitte")
+
 supparentdir = os.path.dirname(parent_dir)
 template_praxis_path = os.path.join(parent_dir,"Vorlage.docx")
 template_tirol_path = os.path.join(parent_dir,"Abrechnung_TherapeutInnen_mit_Ausgleichssatz_ab_01.01.2024-2.xlsx")
