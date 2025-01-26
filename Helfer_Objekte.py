@@ -1,6 +1,6 @@
 from tkinter import *
 from tkcalendar import Calendar, DateEntry
-from pathlib import Path
+from functools import partial
 import pandas as pd
 import openpyxl
 import os
@@ -13,6 +13,8 @@ from tkinter import simpledialog
 import pprint
 import re
 from tkinter import messagebox
+from tkinter.font import Font
+
 
 def check_invoice_archive(year_of_invoice,supparentdir,invoice_achive_template_path,invoicenumber_pattern):
     print(f"Year to link this invoice to: {year_of_invoice}")
@@ -63,15 +65,14 @@ def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_patte
             thisinvoicenumber_suggestion = f"{invoiceyear}-{(lastinvoice_num + 1):03}"
             formatexample = "2024-012"
 
-        result = get_selection(f"Die letzte Rechnungsnummer war {lastinvoicenumber_suggestion}. \nSomit wäre die nächste Rechnungsnummer {thisinvoicenumber_suggestion}. \nMöchtest du die Rechnungsnummer ändern und die Nummer selbst eingeben?")
+        result = ask_right_invoicenumber(f"Die letzte Rechnungsnummer war {lastinvoicenumber_suggestion}. \nSomit wäre die nächste Rechnungsnummer {thisinvoicenumber_suggestion}.")
 
-        if not result:
+        if result:
 
             thisinvoicenumber = thisinvoicenumber_suggestion
             print("Das ist die Rechnungsnummer: " + thisinvoicenumber)
-        if result:
+        if not result:
             root = tk.Tk()
-            change_place_of_window(root)
             # withdraw() will make the parent window disappear.
             root.withdraw()
             # shows a dialogue with a string input field
@@ -134,85 +135,64 @@ def get_selection(title):
 
 
 
-# das ist alles für den ask many multiple questions
-class ScrollFrame(tk.Frame):
 
-    def __init__(self, parent):
-        super().__init__(parent)  # create a frame (self)
-
-        self.canvas = tk.Canvas(self, borderwidth=0, background="#ffffff", width=500)  # Canvas to scroll
-        self.viewPort = tk.Frame(self.canvas, background="#ffffff")  # This frame will hold the child widgets
-        self.vsb = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
-        self.canvas.configure(yscrollcommand=self.vsb.set)  # Attach scrollbar action to scroll of canvas
-
-        self.vsb.pack(side="right", fill="y")  # Pack scrollbar to right - change as needed
-        self.canvas.pack(side="left", fill="both",
-                         expand=True)  # Pack canvas to left and expand to fill - change as needed
-        self.canvas_window = self.canvas.create_window(
-            (0, 0),
-            window=self.viewPort,
-            anchor="nw",
-            tags="self.viewPort",
-        )  # Add view port frame to canvas
-
-        self.viewPort.bind("<Configure>", self.onFrameConfigure)
-        self.canvas.bind("<Configure>", self.onCanvasConfigure)
-        self.first = True
-        self.onFrameConfigure(None)  # Initial stretch on render
-
-    def onFrameConfigure(self, event):
-        '''Reset the scroll region to encompass the inner frame'''
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-
-    def onCanvasConfigure(self, event):
-        '''Reset the canvas window to encompass inner frame when required'''
-        canvas_width = event.width
-        self.canvas.itemconfig(self.canvas_window, width=canvas_width)
-
-    def on_mousewheel(self, event):
-        '''Allows the mousewheel to control the scrollbar'''
-        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-
-    def bnd_mousewheel(self):
-        '''Binds the mousewheel to the scrollbar'''
-        self.canvas.bind_all("<MouseWheel>", self.on_mousewheel)
-
-    def unbnd_mousewheel(self):
-        '''Unbinds the mousewheel from the scrollbar'''
-        self.canvas.unbind_all("<MouseWheel>")
-
-    def delete_all(self):
-        '''Removes all widgets from the viewPort, only works if grid was used'''
-        children = self.viewPort.winfo_children()
-        for child in children:
-            child.grid_remove()
-
-
-
-def ask_many_multiple_choice_question(prompt, options):
+def select_client(options):
     root = tk.Tk()
-    change_place_of_window(root)
-    root.title('Frage:')
-    if prompt:
-        tk.Label(root, text=prompt, font=("Helvetica", 14) ).pack()
-    v = tk.IntVar()
-    tabs = ttk.Notebook(root)
-    tabs.pack()#fill="both")
-    list_frame = ttk.Frame(tabs)
-    tabs.add(list_frame, text="")
+    root.title('Patientenauswahl:')
+    # prompt =  "Von welcher Person willst du die Rechnung ausdrucken?",
+    # tk.Label(root, text=prompt).pack()
 
-    main_window = list_frame
-    mainframe = ttk.Frame(main_window)
-    mainframe.grid(column=0, row=0, sticky="W, E, N, S")
+    search_entry = tk.Entry(root, width=80)
+    search_entry.pack(pady=10)
 
-    folder_contents_frame = ScrollFrame(mainframe)
-    folder_contents_frame.pack(side="top", fill="x", expand=True, padx=20, pady=20)
+    def filter_list(event):
+        searching_for = search_entry.get()
+        print(searching_for)
+        if isinstance(searching_for,str):
+            search_term = search_entry.get().lower()
+            filtered_options = [option for option in options if search_term in option.lower()]
 
-    for i, option in enumerate(options):
-        tk.Radiobutton(folder_contents_frame.viewPort, text=option, variable=v, value=i, font=("Helvetica", 14) ).pack(anchor="w")
-    tk.Button(text="OK", command=root.destroy,font=("Helvetica", 14) ).pack()
+            # Clear the current listbox
+            listbox.delete(0, tk.END)
+
+            # Add filtered options to the listbox
+            for option in filtered_options:
+                listbox.insert(tk.END, option)
+    search_entry.bind('<KeyRelease>', filter_list)
+
+    frame = tk.Frame(root)
+    frame.pack(pady=10)
+
+    # Create a scrollable listbox
+    listbox = tk.Listbox(frame, height=15, width=80, selectmode=tk.SINGLE)
+    listbox.pack(side=tk.LEFT, fill=tk.BOTH)
+
+    scrollbar = tk.Scrollbar(frame, orient=tk.VERTICAL, command=listbox.yview)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    # Link the scrollbar to the listbox
+    listbox.config(yscrollcommand=scrollbar.set)
+
+    # Populate the listbox with all options initially
+    for option in options:
+        listbox.insert(tk.END, option)
+
+    selected_name = [""]
+    def on_ok():
+        selected = listbox.curselection()
+        if selected:
+            index, = listbox.curselection()
+            selected_name[0] =  options[index]
+            # selected_name = options[index]
+            root.destroy()
+
+
+    tk.Button(text="OK", command=on_ok,font=("Helvetica", 14) ).pack()
     root.mainloop()
-    return options[v.get()]
+
+
+    return selected_name[0]
+
 
 def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoice_end_date,summe,archive_which_invoices_path):
     ws_archive_which_invoices = openpyxl.load_workbook(archive_which_invoices_path)
@@ -261,77 +241,168 @@ def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoic
 
 
 
-def show_dict_window(data_dict, root, title, lastdate = 0):
-    window = tk.Toplevel(root)
-    window.title(title)
-
-    text_widget = tk.Text(window, wrap='word')
-    text_widget.pack(expand=True, fill='both')
+def show_matrix_window(matrix, frame, head = ("",""),lastdate = 0,fill='both',expand = True,padx=10, pady=10):
+    print(lastdate)
     if lastdate:
-        text_widget.insert('end', f"Die letze Rechnung wurde am {lastdate} erstellt\n")
-    for key, value in data_dict.items():
-        text_widget.insert('end', f"{key}: {value}\n")
+        Title = tk.Label(frame, text=f"Die letze Rechnung wurde am {lastdate} erstellt").pack(pady=10)
+    treeview = ttk.Treeview(frame, columns=head, show="headings")
+
+    for colname in head:
+        treeview.heading(colname, text=colname)
 
 
+    for column in matrix:
+        columntupel = tuple(column)
+        if isinstance(columntupel[1],pd.DataFrame):
+            temp_list = list(columntupel)
+            temp_list[1] = columntupel[1].to_string(index=False)
+            columntupel = tuple(temp_list)
 
-    text_widget.config(state='disabled')
 
-    # Position the window beside the main window
-    window.geometry(f"+{root.winfo_rootx() + root.winfo_width()}+{root.winfo_rooty()}")
+        treeview.insert("", tk.END,values=columntupel)
+    treeview.pack(padx=padx, pady=pady,fill=fill,expand = expand)
 
-    return window
+    def motion_handler(tree, event):
+        f = Font(font='TkDefaultFont')
 
-def ask_to_save_with_dict(data_dict):
+        # A helper function that will wrap a given value based on column width
+        def adjust_newlines(val, width, pad=10):
+            if not isinstance(val, str):
+                return val
+            else:
+                words = val.split()
+                lines = [[], ]
+                for word in words:
+                    line = lines[-1] + [word, ]
+                    if f.measure(' '.join(line)) < (width - pad):
+                        lines[-1].append(word)
+                    else:
+                        lines[-1] = ' '.join(lines[-1])
+                        lines.append([word, ])
+
+                if isinstance(lines[-1], list):
+                    lines[-1] = ' '.join(lines[-1])
+
+                return '\n'.join(lines)
+
+        if (event is None) or (tree.identify_region(event.x, event.y) == "separator"):
+            # You may be able to use this to only adjust the two columns that you care about
+            # print(tree.identify_column(event.x))
+
+            col_widths = [tree.column(cid)['width'] for cid in tree['columns']]
+
+            for iid in tree.get_children():
+                new_vals = []
+                for (v, w) in zip(tree.item(iid)['values'], col_widths):
+                    new_vals.append(adjust_newlines(v, w))
+                tree.item(iid, values=new_vals)
+
+    def calculate_row_height(tree):
+        """Calculate and adjust row height to fit the text."""
+        # Retrieve the existing Treeview font
+        style = ttk.Style()
+        font = Font(name="TkDefaultFont", exists=True)  # Use the existing font
+
+        # Determine the required height for the tallest text
+        max_text_height = 0
+        for item in tree.get_children():
+            row_values = tree.item(item, "values")
+            for text in row_values:
+                # Measure the height of the text
+                max_text_height = max(max_text_height, font.metrics("linespace"))
+
+        # Adjust the row height dynamically
+        style.configure("Treeview", rowheight=max_text_height + 10)  # Add padding
+
+    treeview.bind('<B1-Motion>', partial(motion_handler, treeview))
+    motion_handler(treeview, None)   # Perform initial wrapping
+    calculate_row_height(treeview)
+
+def ask_to_save(data_list):
     root = tk.Tk()
-    root.withdraw()  # Hide the root window
-    dict_window = show_dict_window(data_dict, root, "Patienteninfos")
+    root.title("Überprüfung")
+    root.geometry("700x800+50+30")
+    Label(root, text="Ich erstelle nun eine Rechnung mit folgenden Daten:").pack()
+    data_list_without_hours = [x for x in data_list if "Stundeninfo" not in x[0] ]
+    show_matrix_window(data_list_without_hours, root, head = ("","Wert"), fill="x",padx=0,pady=0)
+    Label(root, text="Stundendaten").pack()
+    hourdata =[x for x in data_list if "Stundeninfo" in x[0]][0][1]
+    show_matrix_window(list(hourdata.values),root,head=tuple(hourdata.columns),fill="x",padx=0,pady=0)
 
+    Label(root, text="Soll ich nun einen Rechnung mit diesen Daten erstellen?").pack()
+    yes_no_frame = tk.Frame(root)
+    yes_no_frame.pack()
+    ttk.Style().configure('Treeview', rowheight=30)
 
-    # Prompt the user with a message box
-    response = messagebox.askyesno("Speichern?", "Erstelle Rechnungen mit den folgenden Infos?")
+    answer = [False]
+    def button_press(y_n):
+        if y_n == "Y":
+            print("Y")
+            answer[0] = True
+        elif y_n == "N":
+            print("N")
+            answer[0] = False
+        root.destroy()
+    # Pack widgets side by side inside the last row frame
+    tk.Button(yes_no_frame, text="Ja",command=lambda: button_press("Y")).pack(side="left", padx=10)
+    tk.Button(yes_no_frame, text="Nein",command=lambda: button_press("N")).pack(side="left", padx=10)
 
-    # Destroy the window after user interaction
-    dict_window.destroy()
+    root.mainloop()
+    return answer[0]
 
-    # Return the user's response
-    return response
+def ask_right_invoicenumber(question):
+    root = tk.Tk()
+    root.title("Frage")
 
+    Label(root, text=question).pack(padx=10, pady=10)
+    yes_no_frame = tk.Frame(root)
+    yes_no_frame.pack(pady=10,expand=True)
+    ttk.Style().configure('Treeview', rowheight=30)
+
+    answer = [True]
+    def button_press(y_n):
+        if y_n == "Y":
+            print("Y")
+            answer[0] = True
+        elif y_n == "N":
+            print("N")
+            answer[0] = False
+        root.destroy()
+    # Pack widgets side by side inside the last row frame
+    tk.Button(yes_no_frame, text="OK",command=lambda: button_press("Y")).pack(side="left", padx=10)
+    tk.Button(yes_no_frame, text="Ändern",command=lambda: button_press("N")).pack(side="left", padx=10)
+    root.mainloop()
+
+    return answer[0]
 
 def get_date(hourdata,lastdate):
-    import tkinter as tk
-    from tkinter import ttk
-
-
-    def cal_done():
-        top.withdraw()
-        root.quit()
-
+    selected_date = None
     root = tk.Tk()
+    root.title("Auswahl des Rechnungszeitraums")
 
-    root.withdraw()
+    left_frame = tk.Frame(root)
+    right_frame = tk.Frame(root)
+
+    left_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+    right_frame.pack(side="right", fill="both", expand=True, padx=10, pady=10)
 
 
-    top = tk.Toplevel(root)
-    change_place_of_window(top)
-    top.attributes("-topmost", True)
-    label1 = Label(top, text='Rechnung ab: ', font=("Helvetica", 14) )
+    label1 = Label(left_frame, text='Rechnung ab: ', font=("Helvetica", 14) )
     label1.pack(ipadx=10, ipady=10)
 
-    cal1 = Calendar(top,
+    cal1 = Calendar(left_frame,
                    font="Arial 14", selectmode='day')
     cal1.pack(fill="both", expand=True)
-    label2 = Label(top, text='bis: ', font=("Helvetica", 14) )
+    label2 = Label(left_frame, text='bis: ', font=("Helvetica", 14) )
     label2.pack(ipadx=10, ipady=10)
-    cal2 = Calendar(top,
+    cal2 = Calendar(left_frame,
                    font="Arial 14", selectmode='day')
     cal2.pack(fill="both", expand=True)
 
-    tk.Button(top, text="ok",height=2, width=20, font="Arial 14", command=cal_done).pack()
-    data_dict = {"": hourdata}
-    dict_window = show_dict_window(data_dict, top, "Stundendaten", lastdate=lastdate )
-    selected_date = None
+    tk.Button(left_frame, text="ok",height=2, width=20, font="Arial 14", command=root.destroy).pack(pady=10)
+    data_list = hourdata.values.tolist()
+    show_matrix_window(data_list, right_frame,head = ("Rechnungsdatum","PatientIn","Stundendauer in min")  , lastdate=lastdate )
     root.mainloop()
-    dict_window.destroy()
     return cal1.selection_get(), cal2.selection_get()
 
 

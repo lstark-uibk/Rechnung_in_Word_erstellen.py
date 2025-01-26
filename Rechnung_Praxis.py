@@ -7,13 +7,9 @@ from docx import Document
 from docx.shared import Cm
 import os
 import numpy as np
-import re
 import datetime
-# from PyInquirer import prompt
 import pprint
-import Helfer_Objekte
-from  Helfer_Objekte import check_invoice_archive,question_next_invoice_number
-import dateutil.parser
+from  Helfer_Objekte import check_invoice_archive,question_next_invoice_number, select_client, get_date, save_to_archive, ask_to_save
 import tkinter as tk
 
 def make_invoice_praxis(allhourdata_path,allclientdata_path,supparentdir,excel_template_path,template_path):
@@ -25,33 +21,12 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,supparentdir,excel_t
     #select which client
     allclientsnames = list(allclientdata.keys())
     allclientsnames.sort()
-    newclienttext = "Keiner der obigen Personen -> mach neue Person"
-    allclientsnames.append(newclienttext)
-
-
-    clientname = Helfer_Objekte.ask_many_multiple_choice_question(
-        "Von welcher Person willst du die Rechnung ausdrucken?",
+    clientname = select_client(
         allclientsnames
     )
     print("Ich mache die Rechnung für die Person:")
     print(clientname)
-    newclient = False
-    if clientname == newclienttext:
-        newclient = True
-        #execute the input Routine
-        print("Dann lass uns einen Eintrag in der KlientInnendaten Datei anlegen: ")
-        clientdata = Helfer_Objekte.input_new_person(allclientdata_path)
-        clientname = clientdata["name"]
-        print("Dann können wir auch hier gleich die letzten Stundendaten eintrage:")
-        namehourdata = Helfer_Objekte.insert_hourdata(allhourdata_path, clientname)
-        namehourdata["Minuten"] = [int(x) for x in namehourdata["Minuten"]]
-
-
-
-    # prepare data
-    if newclient == False:
-        namehourdata = allhourdata[allhourdata["Name"] == clientname] #select only the hours of the given name
-        #namehourdata["Datum"] = list(map(lambda x: dateutil.parser.parse(x), namehourdata["Datum"]))
+    namehourdata = allhourdata[allhourdata["Name"] == clientname]
 
 
     try:
@@ -64,7 +39,7 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,supparentdir,excel_t
         print("no last invoice times")
         invoicetime_last = 0
     #select with a calendar
-    invoice_start_date, invoice_end_date = Helfer_Objekte.get_date(namehourdata,invoicetime_last)
+    invoice_start_date, invoice_end_date = get_date(namehourdata,invoicetime_last)
     invoice_start_date = pd.to_datetime(invoice_start_date)
     invoice_end_date = pd.to_datetime(invoice_end_date)
     # invoice_start_date, invoice_end_date = datetime.datetime(2023,1,6), datetime.datetime(2023,2,27)
@@ -90,11 +65,10 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,supparentdir,excel_t
 
     print(f"Now i can create the outputdata filepaths:   \n{archive_which_invoices_path}\n{outputfile_path}")
 
-    if newclient == False:
 
-        clientdata = allclientdata[clientname].to_dict()[1]
-        print("Die Patientendaten sind:")
-        pprint.pprint(clientdata)
+    clientdata = allclientdata[clientname].to_dict()[1]
+    print("Die Patientendaten sind:")
+    pprint.pprint(clientdata)
 
     #additional data on invoice
     if clientdata["Kind"] == "nein":
@@ -155,8 +129,9 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,supparentdir,excel_t
     doc.tables[1].cell(0, 2).text = str(totalamount) + "0" + " €"
 
     clientdata["Stundeninfo"] = wordtable
-    save_or_not = Helfer_Objekte.ask_to_save_with_dict(clientdata)
-    print(save_or_not)
+    clientdata_list = [[key,clientdata[key]] for key in clientdata]
+    save_or_not = ask_to_save(clientdata_list)
+    print(f"save or not {save_or_not}")
     if save_or_not:
         print(f"Save word file to {outputfile_path}")
         doc.save(outputfile_path)
@@ -165,7 +140,7 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,supparentdir,excel_t
         try_saving = True
         while try_saving:
             try:
-                Helfer_Objekte.save_to_archive(thisinvoicenumber,clientdata["Heute"],clientname,invoice_start_date,invoice_end_date,totalamount,archive_which_invoices_path)
+                save_to_archive(thisinvoicenumber,clientdata["Heute"],clientname,invoice_start_date,invoice_end_date,totalamount,archive_which_invoices_path)
                 try_saving = False
             except:
                 def show_alert():
