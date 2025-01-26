@@ -5,7 +5,6 @@ import pandas as pd
 import dateutil.parser
 import openpyxl
 import xlwings as xw
-# from Rechnung_in_Word_erstellen import main
 
 
 def make_new_Person(allclientdata_path):
@@ -125,6 +124,7 @@ def make_new_Person(allclientdata_path):
             if response:
                 print("Abschließen")
                 root.destroy()
+                from Rechnung_in_Word_erstellen import main
                 main()
 
             else:

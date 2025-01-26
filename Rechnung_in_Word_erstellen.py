@@ -30,7 +30,7 @@ def main():
             make_invoice_praxis(allhourdata_path, allclientdata_path, supparentdir, excel_template_path, template_praxis_path)
         elif answer == "Neu":
             print("Neu")
-            make_new_Person()
+            make_new_Person(allclientdata_path)
 
 
 
