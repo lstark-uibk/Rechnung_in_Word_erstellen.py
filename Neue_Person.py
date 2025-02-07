@@ -124,7 +124,7 @@ def make_new_Person(allclientdata_path):
             if response:
                 print("Abschließen")
                 root.destroy()
-                from Rechnung_in_Word_erstellen import main
+                from Rechnung_erstellen import main
                 main()
 
             else:

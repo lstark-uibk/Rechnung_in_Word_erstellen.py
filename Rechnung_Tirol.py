@@ -75,21 +75,24 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,supparentdir,excel_
         def on_name_select(selected_name,clientindex,selected_clientdata):
             # selected_clientdata[clientindex]["Name"].gui_widget['menu'].entryconfig("Select", state="disabled") # make tha you cannot select Auswählen anymore
             print(f"{selected_name} number {clientindex}, {selected_clientdata}")
-            thisclientdata = allclientdata[selected_name].to_dict()[1]
-            for key in thisclientdata.keys():
-                if key not in showvalues:
-                    selected_clientdata[clientindex][key] = thisclientdata[key]
-            print(selected_clientdata)
-            selected_clientdata[clientindex]["Name"].value = selected_name
-            selected_clientdata[clientindex]["Geb."].gui_widget["text"] = thisclientdata["Geb."].strftime("%d.%m.%Y")
-            selected_clientdata[clientindex]["Geb."].value = thisclientdata["Geb."]
-            selected_clientdata[clientindex]["Gültige Genehmigung Land Tirol ab"].gui_widget["text"] = thisclientdata["Gültige Genehmigung Land Tirol ab"].strftime("%d.%m.%Y")
-            selected_clientdata[clientindex]["Gültige Genehmigung Land Tirol ab"].value = thisclientdata["Gültige Genehmigung Land Tirol ab"]
+            if selected_clientdata[clientindex]["Name"].gui_widget["text"] != "Keine Person":
+                thisclientdata = allclientdata[selected_name].to_dict()[1]
+                for key in thisclientdata.keys():
+                    if key not in showvalues:
+                        selected_clientdata[clientindex][key] = thisclientdata[key]
+                print(selected_clientdata)
+                selected_clientdata[clientindex]["Name"].value = selected_name
+                selected_clientdata[clientindex]["Geb."].gui_widget["text"] = thisclientdata["Geb."].strftime("%d.%m.%Y")
+                selected_clientdata[clientindex]["Geb."].value = thisclientdata["Geb."]
+                selected_clientdata[clientindex]["Gültige Genehmigung Land Tirol ab"].gui_widget["text"] = thisclientdata["Gültige Genehmigung Land Tirol ab"].strftime("%d.%m.%Y")
+                selected_clientdata[clientindex]["Gültige Genehmigung Land Tirol ab"].value = thisclientdata["Gültige Genehmigung Land Tirol ab"]
 
         clicked = tk.StringVar()
         clicked.set("Auswählen")
         print(clientindex)
-        selected_clientdata[clientindex]["Name"] = Grid_Entry(tk.OptionMenu(window , clicked, *allclientsnames,command= lambda selected_name, ci=clientindex, sc =selected_clientdata: on_name_select(selected_name,ci,sc)),"" )
+        options = allclientsnames.copy()
+        options.insert(0,"Keine Person")
+        selected_clientdata[clientindex]["Name"] = Grid_Entry(tk.OptionMenu(window , clicked, *options,command= lambda selected_name, ci=clientindex, sc =selected_clientdata: on_name_select(selected_name,ci,sc)),"" )
 
         selected_clientdata[clientindex]["Geb."] = Grid_Entry(tk.Label(master=window, text=""), "")
         vcmd = window.register(validate_input_int)
@@ -131,26 +134,28 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,supparentdir,excel_
                            "Anzahl Hausbesuche":("H",22)}
         otherlocs = {"Ort, Datum":"E16","Rechnungsnummer":"E17"}
         for clientindex in range(1, 4):
-            for key in showvalues:
-                if isinstance(selected_clientdata[clientindex][key],dict):
-                    for min in selected_clientdata[clientindex][key]:
-                        location = f"{excelsheet_locs[key][min][0]}{excelsheet_locs[key][min][1]+(clientindex-1)*cellsbetweenclients}"
-                        print(location)
-                        invoice_tirol_sheet[location] = selected_clientdata[clientindex][key][min].gui_widget.get()
-                else:
-                    location = f"{excelsheet_locs[key][0]}{excelsheet_locs[key][1]+(clientindex-1)*cellsbetweenclients}"
-                    print(location)
-                    if key == "Anzahl Hausbesuche":
-                        invoice_tirol_sheet[location] = selected_clientdata[clientindex][key].gui_widget.get()
+            print(selected_clientdata[clientindex]["Name"].gui_widget["text"])
+            if selected_clientdata[clientindex]["Name"].gui_widget["text"] != "Keine Person":
+                for key in showvalues:
+                    if isinstance(selected_clientdata[clientindex][key],dict):
+                        for min in selected_clientdata[clientindex][key]:
+                            location = f"{excelsheet_locs[key][min][0]}{excelsheet_locs[key][min][1]+(clientindex-1)*cellsbetweenclients}"
+                            print(location)
+                            invoice_tirol_sheet[location] = selected_clientdata[clientindex][key][min].gui_widget.get()
                     else:
-                        if key == "Name":
-                            input = selected_clientdata[clientindex][key].gui_widget["text"]
-                            if input != "Auswählen":
-                                invoice_tirol_sheet[location] = selected_clientdata[clientindex][key].gui_widget["text"]
+                        location = f"{excelsheet_locs[key][0]}{excelsheet_locs[key][1]+(clientindex-1)*cellsbetweenclients}"
+                        print(location)
+                        if key == "Anzahl Hausbesuche":
+                            invoice_tirol_sheet[location] = selected_clientdata[clientindex][key].gui_widget.get()
                         else:
-                            invoice_tirol_sheet[location] = selected_clientdata[clientindex][key].gui_widget["text"]
-            print(invoice_tirol_sheet["I27"].value)
-            invoice_tirol_sheet[otherlocs["Ort, Datum"]]=f"Innsbruck, {datetime.datetime.today().strftime('%d.%m.%Y')}"
+                            if key == "Name":
+                                input = selected_clientdata[clientindex][key].gui_widget["text"]
+                                if input != "Auswählen":
+                                    invoice_tirol_sheet[location] = selected_clientdata[clientindex][key].gui_widget["text"]
+                            else:
+                                invoice_tirol_sheet[location] = selected_clientdata[clientindex][key].gui_widget["text"]
+                print(invoice_tirol_sheet["I27"].value)
+                invoice_tirol_sheet[otherlocs["Ort, Datum"]]=f"Innsbruck, {datetime.datetime.today().strftime('%d.%m.%Y')}"
 
         #get invoice number
         year_of_invoice = datetime.datetime.today().year
@@ -166,17 +171,15 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,supparentdir,excel_
         outputdir_path = os.path.join(supparentdir, f"{datetime.datetime.today().year}")
         archive_which_invoices_path = os.path.join(outputdir_path, f"Rechnungen {datetime.datetime.today().year}.xlsx")
         outputfile_path = os.path.join(outputdir_path, f"RE {thisinvoicenumber} {datetime.date.today().strftime('%d_%m_%Y')}.xlsx")
-
         invoice_tirol.save(outputfile_path)
         app = xw.App(visible=True)  # Set visible=True to see the Excel window
         workbook = app.books.open(outputfile_path)
-
         sheet = workbook.sheets['Rechnung mit AZ']  # Access a sheet by name
         totalsum = sheet.range('I43').value
-        print(sheet.range('A1').value)
-        print(totalsum)
+        # print(sheet.range('A1').value)
+        # print(totalsum)
 
-        response =tk.messagebox.askyesno("Abschließen?",
+        response = tk.messagebox.askyesno("Abschließen?",
                                        "Bist du mit dem Ergebnis zufrieden? \nWenn ja dann schließe ich nun das Program (du kannst immer noch im Excel Sachen ändern und dann von Excel speichern). \nWenn nein kannst du nun noch weiter im Programm sachen ändern.")
 
         if response:
