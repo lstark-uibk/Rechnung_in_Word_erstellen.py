@@ -9,7 +9,7 @@ def main():
     parent_dir = "C:\\Users\\peaq\\Documents\\Programm Logo\\Programm"
 
     supparentdir = os.path.dirname(parent_dir)
-    template_praxis_path = os.path.join(parent_dir, "Vorlage.docx")
+    template_praxis_path = os.path.join(parent_dir, "VorlageRosmarie.docx")
     template_tirol_path = os.path.join(parent_dir, "Abrechnung_TherapeutInnen_mit_Ausgleichssatz_ab_01.01.2024-2.xlsx")
     excel_template_path = os.path.join(parent_dir, "Jahresübersicht_Vorlage.xlsx")
     allhourdata_path = os.path.join(supparentdir, "Daten\\Stundendaten.xlsx")
