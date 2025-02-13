@@ -1,20 +1,11 @@
-from pathlib import Path
-from docxtpl import DocxTemplate
+import numpy as np
 import openpyxl
 import pandas as pd
-from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx import Document
-from docx.shared import Cm
 import xlwings as xw
 import os
-import numpy as np
-import re
 import datetime
 # from PyInquirer import prompt
-import pprint
-import Helfer_Objekte
-from Helfer_Objekte import check_invoice_archive, question_next_invoice_number,save_to_archive, validate_input_int
-import dateutil.parser
+from Programm.Helfer_Objekte import check_invoice_archive, question_next_invoice_number,save_to_archive, validate_input_int, stringsandyear_topath
 import tkinter as tk
 
 class Grid_Entry():
@@ -23,16 +14,22 @@ class Grid_Entry():
         self.value = value
 
 
+def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path,outputdir_suppath,nameoutputdir,nameoutputarchivefile,
+                       invoicenumber_pattern, invoicenumber_pattern_names, user = "r"):
+    if user == "r":
+        amount_of_persons_LandTirol = 3
+    if user == "b":
+        amount_of_persons_LandTirol = 5
 
-# parent_dir = "C:\\Users\\peaq\\Documents\\Programm Logo\\Programm"
-# supparentdir = os.path.dirname(parent_dir)
-# template_path = os.path.join(parent_dir,"Vorlage.docx")
-# invoice_tirol_path = os.path.join(parent_dir,"Abrechnung_TherapeutInnen_mit_Ausgleichssatz_ab_01.01.2024-2.xlsx")
-# excel_template_path = os.path.join(parent_dir,"Jahresübersicht_Vorlage.xlsx")
-# allhourdata_path = os.path.join(parent_dir ,"Stundendaten.xlsx")
-# allclientdata_path = os.path.join(parent_dir ,"PatientInneninformationen.xlsx")
-# outputinvoice_path = 'C:\\Users\\peaq\\Documents\\Programm Logo\\Programm\\Rechnungtest.xlsx'
-def make_invoice_tirol(allclientdata_path,invoice_tirol_path,supparentdir,excel_template_path):
+
+
+    invoicenumber_pattern = r'(\d{4})-(\d+)'
+    # invoicenumber_pattern = r'(T\d{4})-(\d+)'
+    # invoicenumber_pattern_names = ["T","year","-","invoicenumber"]
+    invoicenumber_pattern_names = ["year","-","invoicenumber"]
+
+
+
     allclientdata = pd.read_excel(allclientdata_path, index_col=0, header=None, sheet_name=None)
 
     # select which client
@@ -75,11 +72,10 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,supparentdir,excel_
         def on_name_select(selected_name,clientindex,selected_clientdata):
             # selected_clientdata[clientindex]["Name"].gui_widget['menu'].entryconfig("Select", state="disabled") # make tha you cannot select Auswählen anymore
             print(f"{selected_name} number {clientindex}, {selected_clientdata}")
-            if selected_clientdata[clientindex]["Name"].gui_widget["text"] != "Keine Person":
-                thisclientdata = allclientdata[selected_name].to_dict()[1]
-                for key in thisclientdata.keys():
-                    if key not in showvalues:
-                        selected_clientdata[clientindex][key] = thisclientdata[key]
+            thisclientdata = allclientdata[selected_name].to_dict()[1]
+            for key in thisclientdata.keys():
+                if key not in showvalues:
+                    selected_clientdata[clientindex][key] = thisclientdata[key]
                 print(selected_clientdata)
                 selected_clientdata[clientindex]["Name"].value = selected_name
                 selected_clientdata[clientindex]["Geb."].gui_widget["text"] = thisclientdata["Geb."].strftime("%d.%m.%Y")
@@ -89,9 +85,8 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,supparentdir,excel_
 
         clicked = tk.StringVar()
         clicked.set("Auswählen")
-        print(clientindex)
+        # print(clientindex)
         options = allclientsnames.copy()
-        options.insert(0,"Keine Person")
         selected_clientdata[clientindex]["Name"] = Grid_Entry(tk.OptionMenu(window , clicked, *options,command= lambda selected_name, ci=clientindex, sc =selected_clientdata: on_name_select(selected_name,ci,sc)),"" )
 
         selected_clientdata[clientindex]["Geb."] = Grid_Entry(tk.Label(master=window, text=""), "")
@@ -123,7 +118,19 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,supparentdir,excel_
         print("Erstelle Rechnung")
         print(f"open excel vorlage tirol {invoice_tirol_path}")
         invoice_tirol = openpyxl.load_workbook(invoice_tirol_path)
-        invoice_tirol_sheet = invoice_tirol['Rechnung mit AZ']
+        invoice_tirol_sheet = invoice_tirol["Rechnung Einrichtung"]
+
+        kostenstruktur = {"Anzahl Einzelstunden": {},
+                          "Anzahl Gruppenstunden": {},
+                          "Anzahl Hausbesuche":invoice_tirol_sheet["H25"].value,
+                          "Ausgleichzulage": float(invoice_tirol_sheet["H26"].value)}
+        if user == "r":
+            minutes = ["30 min","45 min","60 min"]
+            for i,min in zip(range(22, 25),minutes):
+                kostenstruktur["Anzahl Einzelstunden"][min] = invoice_tirol_sheet[f"E{i}"].value
+
+            for i,min in zip(range(22, 25),minutes):
+                kostenstruktur["Anzahl Gruppenstunden"][min] = invoice_tirol_sheet[f"G{i}"].value
 
         cellsbetweenclients = 7
         excelsheet_locs = {"Name":("A",22),
@@ -133,20 +140,32 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,supparentdir,excel_
                            "Anzahl Gruppenstunden":{"30 min":("F",22),"45 min":("F",23),"60 min":("F",24)},
                            "Anzahl Hausbesuche":("H",22)}
         otherlocs = {"Ort, Datum":"E16","Rechnungsnummer":"E17"}
-        for clientindex in range(1, 4):
-            print(selected_clientdata[clientindex]["Name"].gui_widget["text"])
-            if selected_clientdata[clientindex]["Name"].gui_widget["text"] != "Keine Person":
+        costsdf = pd.DataFrame(columns=["Anzahl Einzelstunden","Anzahl Gruppenstunden","Anzahl Hausbesuche"])
+
+        for clientindex in range(1, amount_of_persons_LandTirol + 1):
+            costsdf.loc[clientindex - 1] = [0, 0, 0]
+            # print(selected_clientdata[clientindex]["Name"].gui_widget["text"])
+            if selected_clientdata[clientindex]["Name"].gui_widget["text"] != "Auswählen":
                 for key in showvalues:
                     if isinstance(selected_clientdata[clientindex][key],dict):
+                        costvalues = np.array([])
                         for min in selected_clientdata[clientindex][key]:
                             location = f"{excelsheet_locs[key][min][0]}{excelsheet_locs[key][min][1]+(clientindex-1)*cellsbetweenclients}"
-                            print(location)
-                            invoice_tirol_sheet[location] = selected_clientdata[clientindex][key][min].gui_widget.get()
+                            # print(location)
+                            amounthours = selected_clientdata[clientindex][key][min].gui_widget.get()
+                            invoice_tirol_sheet[location] = amounthours
+                            if amounthours:
+                                cost = kostenstruktur[key][min] * float(amounthours)
+                                costvalues = np.append(costvalues,float(cost))
+                        costsdf.loc[clientindex - 1,key] = costvalues.sum()
                     else:
                         location = f"{excelsheet_locs[key][0]}{excelsheet_locs[key][1]+(clientindex-1)*cellsbetweenclients}"
-                        print(location)
+                        # print(location)
                         if key == "Anzahl Hausbesuche":
-                            invoice_tirol_sheet[location] = selected_clientdata[clientindex][key].gui_widget.get()
+                            value = selected_clientdata[clientindex][key].gui_widget.get()
+                            if value:
+                                costsdf.loc[clientindex - 1,key] = kostenstruktur[key]*float(value)
+                            invoice_tirol_sheet[location] = value
                         else:
                             if key == "Name":
                                 input = selected_clientdata[clientindex][key].gui_widget["text"]
@@ -157,47 +176,61 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,supparentdir,excel_
                 print(invoice_tirol_sheet["I27"].value)
                 invoice_tirol_sheet[otherlocs["Ort, Datum"]]=f"Innsbruck, {datetime.datetime.today().strftime('%d.%m.%Y')}"
 
+        # calculate total sum
+        costsdf["Ausgleichzulage"] = (costsdf["Anzahl Einzelstunden"]+costsdf["Anzahl Gruppenstunden"])*kostenstruktur["Ausgleichzulage"]
+        costsdf["Summen"] = costsdf.sum(axis=1)
+        totalsum  = costsdf["Summen"].sum(axis = 0)
+        window.destroy()
+
         #get invoice number
         year_of_invoice = datetime.datetime.today().year
+        outputdir = stringsandyear_topath(nameoutputdir, year_of_invoice)
+        outputdir_path = os.path.join(outputdir_suppath, outputdir)
+        archive_which_invoices_name = stringsandyear_topath(nameoutputarchivefile, year_of_invoice)
+        archive_which_invoices_path = os.path.join(outputdir_path, archive_which_invoices_name)
+
         print(f"Year to link this invoice to: {year_of_invoice}")
-        lastinvoice_num = check_invoice_archive(year_of_invoice,supparentdir,excel_template_path,invoicenumber_pattern= r'T(\d{4})-(\d+)')
+        lastinvoice_num = check_invoice_archive(year_of_invoice,outputdir_suppath,archive_which_invoices_path,excel_template_path,invoicenumber_pattern= invoicenumber_pattern)
         print(f"lastinvoice_num: {lastinvoice_num}")
-        invoicenumber_pattern = r'T(\d{4})-(\d+)'
-        thisinvoicenumber = question_next_invoice_number(year_of_invoice,lastinvoice_num,invoicenumber_pattern,Tirol=True)
+        thisinvoicenumber = question_next_invoice_number(year_of_invoice,lastinvoice_num,invoicenumber_pattern,invoicenumber_pattern_names)
         print(f"thisinvoicenumber{thisinvoicenumber}")
 
         invoice_tirol_sheet[otherlocs["Rechnungsnummer"]] = thisinvoicenumber
 
-        outputdir_path = os.path.join(supparentdir, f"{datetime.datetime.today().year}")
-        archive_which_invoices_path = os.path.join(outputdir_path, f"Rechnungen {datetime.datetime.today().year}.xlsx")
+
         outputfile_path = os.path.join(outputdir_path, f"RE {thisinvoicenumber} {datetime.date.today().strftime('%d_%m_%Y')}.xlsx")
         invoice_tirol.save(outputfile_path)
-        app = xw.App(visible=True)  # Set visible=True to see the Excel window
-        workbook = app.books.open(outputfile_path)
-        sheet = workbook.sheets['Rechnung mit AZ']  # Access a sheet by name
-        totalsum = sheet.range('I43').value
-        # print(sheet.range('A1').value)
-        # print(totalsum)
-
-        response = tk.messagebox.askyesno("Abschließen?",
-                                       "Bist du mit dem Ergebnis zufrieden? \nWenn ja dann schließe ich nun das Program (du kannst immer noch im Excel Sachen ändern und dann von Excel speichern). \nWenn nein kannst du nun noch weiter im Programm sachen ändern.")
-
-        if response:
-            print("Abschließen")
-            try:
-                workbook.save(outputfile_path)
-            except Exception as e:
-                print("Could not save and close the workbook, is it already closed?")
-                print(e)
-            window.destroy()
-            save_to_archive(thisinvoicenumber, datetime.datetime.today(), "", datetime.datetime.today(),
+        print(f"Speichern der Rechnungn in {outputfile_path}")
+        save_to_archive(thisinvoicenumber, datetime.datetime.today(), "", datetime.datetime.today(),
                             datetime.datetime.today(), totalsum, archive_which_invoices_path)
-            os.startfile(archive_which_invoices_path)
+
+        if os.name == 'posix':
+            print("This system is Linux or another Unix-like system.")
+            import subprocess
+            subprocess.run(['xdg-open', outputfile_path])
+            subprocess.run(['xdg-open', archive_which_invoices_path])
+
 
         else:
-            print("Weiter machen")
-            # continue doesnot work fully
-            app.quit()
+            print("This system is not Linux.")
+            os.startfile(outputfile_path)
+            os.startfile(archive_which_invoices_path)
+
+
+        # response = tk.messagebox.askyesno("Abschließen?",
+        #                                "Bist du mit dem Ergebnis zufrieden? \nWenn ja dann schließe ich nun das Program (du kannst immer noch im Excel Sachen ändern und dann von Excel speichern). \nWenn nein kannst du nun noch weiter im Programm sachen ändern.")
+        #
+        # if response:
+        #     print("Abschließen")
+        #
+        #     save_to_archive(thisinvoicenumber, datetime.datetime.today(), "", datetime.datetime.today(),
+        #                     datetime.datetime.today(), totalsum, archive_which_invoices_path)
+        #     os.startfile(archive_which_invoices_path)
+        #
+        # else:
+        #     print("Weiter machen")
+        #     # continue doesnot work fully
+        #     app.quit()
 
 
 

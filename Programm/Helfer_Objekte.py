@@ -15,14 +15,34 @@ import re
 from tkinter import messagebox
 from tkinter.font import Font
 
+def stringsandyear_topath(stringsandyear,year):
+    string = ""
+    for x in stringsandyear:
+        print(x)
+        if "year" not in x:
+            string += x
+        else:
+            string += f"{year}"
+    return string
 
-def check_invoice_archive(year_of_invoice,supparentdir,invoice_achive_template_path,invoicenumber_pattern):
+def stringsandinvoicenumber_topath(stringsandinvoicenumber, invoicenumber, clientname, date):
+    string = ""
+    for x in stringsandinvoicenumber:
+        print(x)
+        if ("invoicenumber" in x) :
+            string += invoicenumber
+        if ("clientname" in x) :
+            string += clientname
+        if ("date" in x):
+            string += date
+        if ("date" not in x) and ("clientname" not in x) and ("invoicenumber" not in x) :
+            string += x
+    print(string)
+    return string
+def check_invoice_archive(year_of_invoice,outputdir_path,archive_which_invoices_path,invoice_achive_template_path,invoicenumber_pattern):
     print(f"Year to link this invoice to: {year_of_invoice}")
-    outputdir_path = os.path.join(supparentdir,f"{year_of_invoice}")
     if not os.path.exists(outputdir_path):
         os.mkdir(outputdir_path)
-
-    archive_which_invoices_path = os.path.join(outputdir_path,f"Rechnungen {year_of_invoice}.xlsx")
 
     if not os.path.exists(archive_which_invoices_path):
         print(f"Because there was no Archive file of the year create one at {archive_which_invoices_path}")
@@ -49,27 +69,33 @@ def check_invoice_archive(year_of_invoice,supparentdir,invoice_achive_template_p
                 break
     return lastinvoice_num
 
-def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_pattern,Tirol = False):
+def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_pattern,invoicenumber_pattern_names):
     #get which invoicenumber
     answer1 = "Nimm einfach die Nächste in der Reihe"
     answer2 = "Ich möchte sie selber eingeben"
     invoicenumberquestion_choices = [answer1, answer2]
     thisinvoicenumber = ""
     while not thisinvoicenumber:
-        if Tirol:
-            lastinvoicenumber_suggestion = f"T{invoiceyear}-{(lastinvoice_num):03}"
-            thisinvoicenumber_suggestion = f"T{invoiceyear}-{(lastinvoice_num + 1):03}"
-            formatexample = "T2024-012"
-        else:
-            lastinvoicenumber_suggestion = f"{invoiceyear}-{(lastinvoice_num):03}"
-            thisinvoicenumber_suggestion = f"{invoiceyear}-{(lastinvoice_num + 1):03}"
-            formatexample = "2024-012"
+        last_inv_numb_str_sugg = ""
+        this_inv_numb_str_sugg = ""
+        for x in invoicenumber_pattern_names:
+            print(x)
+            if x in "year":
+                last_inv_numb_str_sugg += f"{invoiceyear}"
+                this_inv_numb_str_sugg += f"{invoiceyear}"
+            elif x in "invoicenumber":
+                last_inv_numb_str_sugg += f"{(lastinvoice_num):03}"
+                this_inv_numb_str_sugg += f"{(lastinvoice_num + 1):03}"
+            else:
+                last_inv_numb_str_sugg += x
+                this_inv_numb_str_sugg += x
 
-        result = ask_right_invoicenumber(f"Die letzte Rechnungsnummer war {lastinvoicenumber_suggestion}. \nSomit wäre die nächste Rechnungsnummer {thisinvoicenumber_suggestion}.")
+
+        result = ask_right_invoicenumber(f"Die letzte Rechnungsnummer war {last_inv_numb_str_sugg}. \nSomit wäre die nächste Rechnungsnummer {this_inv_numb_str_sugg}.")
 
         if result:
 
-            thisinvoicenumber = thisinvoicenumber_suggestion
+            thisinvoicenumber = this_inv_numb_str_sugg
             print("Das ist die Rechnungsnummer: " + thisinvoicenumber)
         if not result:
             root = tk.Tk()
@@ -77,7 +103,7 @@ def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_patte
             root.withdraw()
             # shows a dialogue with a string input field
             thisinvoicenumber = tk.simpledialog.askstring('Rechnungsnummer',
-                                                       f"Dann kannst du sie jetzt selber eingeben (in dem Format z.b. {formatexample}):",
+                                                       f"Dann kannst du sie jetzt selber eingeben (in dem Format z.b. {last_inv_numb_str_sugg}):",
                                                        parent=root)
             root.destroy()
             if not thisinvoicenumber:
@@ -244,7 +270,7 @@ def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoic
 def show_matrix_window(matrix, frame, head = ("",""),lastdate = 0,fill='both',expand = True,padx=10, pady=10):
     print(lastdate)
     if lastdate:
-        Title = tk.Label(frame, text=f"Die letze Rechnung wurde am {lastdate} erstellt").pack(pady=10)
+        Title = tk.Label(frame, text=f"Die letze Rechnung für diese Person wurde am {lastdate} erstellt").pack(pady=10)
     treeview = ttk.Treeview(frame, columns=head, show="headings")
 
     for colname in head:
@@ -360,19 +386,20 @@ def ask_right_invoicenumber(question):
     ttk.Style().configure('Treeview', rowheight=30)
 
     answer = [True]
-    def button_press(y_n):
-        if y_n == "Y":
-            print("Y")
-            answer[0] = True
-        elif y_n == "N":
-            print("N")
-            answer[0] = False
+    def button_press_y():
+        print("Y")
+        answer[0] = True
+        root.destroy()
+    def button_press_n():
+        print("N")
+        answer[0] = False
         root.destroy()
     # Pack widgets side by side inside the last row frame
-    tk.Button(yes_no_frame, text="OK",command=lambda: button_press("Y")).pack(side="left", padx=10)
-    tk.Button(yes_no_frame, text="Ändern",command=lambda: button_press("N")).pack(side="left", padx=10)
+    tk.Button(yes_no_frame, text="OK",command=button_press_y).pack(side="left", padx=10)
+    tk.Button(yes_no_frame, text="Ändern",command=button_press_y).pack(side="left", padx=10)
     root.mainloop()
-
+    print("proceed")
+    print("Window closed, proceeding with the program.")
     return answer[0]
 
 def get_date(hourdata,lastdate):
