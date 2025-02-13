@@ -15,6 +15,24 @@ import re
 from tkinter import messagebox
 from tkinter.font import Font
 
+
+def on_name_select(selected_name, clientindex, selected_clientdata, allclientdata, showvalues):
+    # selected_clientdata[clientindex]["Name"].gui_widget['menu'].entryconfig("Select", state="disabled") # make tha you cannot select Auswählen anymore
+    print(f"{selected_name} number {clientindex}, {selected_clientdata}")
+    thisclientdata = allclientdata[selected_name].to_dict()[1]
+    for key in thisclientdata.keys():
+        if key not in showvalues:
+            selected_clientdata[clientindex][key] = thisclientdata[key]
+        print(selected_clientdata)
+        selected_clientdata[clientindex]["Name"].value = selected_name
+        selected_clientdata[clientindex]["Geb."].gui_widget["text"] = thisclientdata["Geb."].strftime("%d.%m.%Y")
+        selected_clientdata[clientindex]["Geb."].value = thisclientdata["Geb."]
+        selected_clientdata[clientindex]["Gültige Genehmigung Land Tirol ab"].gui_widget["text"] = thisclientdata[
+            "Gültige Genehmigung Land Tirol ab"].strftime("%d.%m.%Y")
+        selected_clientdata[clientindex]["Gültige Genehmigung Land Tirol ab"].value = thisclientdata[
+            "Gültige Genehmigung Land Tirol ab"]
+
+
 def stringsandyear_topath(stringsandyear,year):
     string = ""
     for x in stringsandyear:

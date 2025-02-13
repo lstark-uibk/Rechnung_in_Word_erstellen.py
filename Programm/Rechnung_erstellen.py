@@ -7,8 +7,8 @@ from  Neue_Person import make_new_Person
 
 def main():
     parent_dir = os.path.dirname(os.path.realpath(__file__))
-    # user = "b"
-    user = "r"
+    # user = "r"
+    user = "b"
     supparentdir = os.path.dirname(parent_dir)
     if user == "r":
         template_praxis_path = os.path.join(supparentdir, "Vorlagen/VorlageRosmarie.docx")
@@ -25,7 +25,11 @@ def main():
     outputdir_suppath = supparentdir
     nameoutputdir = ["Rechnungen ", "year"]
     nameoutputarchivefile = ["Kassabuch ", "year",".xlsx"]
-    nameinvoicefile = ["RE-", "invoicenumber", "clientname", "date", ".docx"]
+    if user == "r":
+        nameinvoicefile = ["RE-", "invoicenumber", "clientname", "date", ".docx"]
+    if user == "b":
+        nameinvoicefile = ["RE-", "invoicenumber", "clientname", "date", ".xlsx"]
+
     invoicenumber_pattern = r'(\d{4})-(\d+)'
     invoicenumber_pattern_names = ["year","-","invoicenumber"]
 
