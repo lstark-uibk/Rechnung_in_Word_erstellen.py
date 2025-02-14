@@ -8,7 +8,7 @@ import os
 import numpy as np
 import datetime
 import pprint
-from Programm.Helfer_Objekte import (check_invoice_archive,question_next_invoice_number, select_client, get_date, save_to_archive, ask_to_save,
+from Helfer_Objekte import (check_invoice_archive,question_next_invoice_number, select_client, get_date, save_to_archive, ask_to_save,
                                      stringsandyear_topath, stringsandinvoicenumber_topath)
 import tkinter as tk
 
@@ -183,13 +183,13 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
     save_or_not = ask_to_save(clientdata_list)
     print(f"save or not {save_or_not}")
     if save_or_not:
+
         if user =="r":
             print(f"Save word file to {outputfile_path}")
             doc.save(outputfile_path)
         if user == "b":
             invoice.save(outputfile_path)
             print(f"Save excel file to {outputfile_path}")
-
 
         #write what I did in the archive
         try_saving = True
@@ -229,3 +229,5 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
             os.startfile(outputfile_path)
     else:
         print("Didnot save anything")
+    from Rechnung_erstellen import main
+    main()

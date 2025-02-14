@@ -59,8 +59,10 @@ def stringsandinvoicenumber_topath(stringsandinvoicenumber, invoicenumber, clien
     return string
 def check_invoice_archive(year_of_invoice,outputdir_path,archive_which_invoices_path,invoice_achive_template_path,invoicenumber_pattern):
     print(f"Year to link this invoice to: {year_of_invoice}")
+    print(f"Directory to save: {outputdir_path}")
     if not os.path.exists(outputdir_path):
         os.mkdir(outputdir_path)
+        print(f"Make new diectory {outputdir_path}")
 
     if not os.path.exists(archive_which_invoices_path):
         print(f"Because there was no Archive file of the year create one at {archive_which_invoices_path}")
@@ -441,7 +443,7 @@ def get_date(hourdata,lastdate):
     selected_date = None
 
     root = tk.Tk()
-    root.geometry("1000x700+50+10")
+    root.geometry("1000x650+50+0")
     root.title("Auswahl des Rechnungszeitraums")
 
     left_frame = tk.Frame(root)

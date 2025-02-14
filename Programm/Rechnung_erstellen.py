@@ -23,8 +23,9 @@ def main():
     excel_template_path = os.path.join(supparentdir, "Vorlagen/Jahresübersicht_Vorlage.xlsx")
     allhourdata_path = os.path.join(supsupparentdir, "Daten/Stundendaten.xlsx")
     allclientdata_path = os.path.join(supsupparentdir, "Daten/PatientInneninformationen.xlsx")
-    outputdir_suppath = supparentdir
-    nameoutputdir = ["Rechnungen ", "year"]
+    outputdir_suppath = supsupparentdir
+    #nameoutputdir = ["Rechnungen ", "year"]
+    nameoutputdir = ["year"]
     nameoutputarchivefile = ["Rechnungen ", "year",".xlsx"]
     if user == "r":
         nameinvoicefile = ["RE-", "invoicenumber", "clientname", "date", ".docx"]
@@ -33,7 +34,7 @@ def main():
 
     invoicenumber_pattern = r'(\d{4})-(\d+)'
     invoicenumber_pattern_names = ["year","-","invoicenumber"]
-    invoicenumber_pattern_names_T = ["T","year","-","invoicenumber"]
+    #invoicenumber_pattern_names_T = ["T","year","-","invoicenumber"]
 
 
     archive_which_invoices_path = 0
@@ -46,7 +47,7 @@ def main():
         if answer == "Tirol":
             print("Tirol")
             make_invoice_tirol(allclientdata_path,template_tirol_path,excel_template_path,outputdir_suppath,nameoutputdir,nameoutputarchivefile,
-                               invoicenumber_pattern, invoicenumber_pattern_names_T, user = user)
+                               invoicenumber_pattern, invoicenumber_pattern_names, user = user)
         elif answer == "Praxis":
             print("Praxis")
             make_invoice_praxis(allhourdata_path, allclientdata_path, excel_template_path, template_praxis_path,outputdir_suppath,

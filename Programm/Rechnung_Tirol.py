@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import datetime
 # from PyInquirer import prompt
-from Programm.Helfer_Objekte import check_invoice_archive, question_next_invoice_number,save_to_archive, validate_input_int, stringsandyear_topath, on_name_select
+from Helfer_Objekte import check_invoice_archive, question_next_invoice_number,save_to_archive, validate_input_int, stringsandyear_topath, on_name_select
 import tkinter as tk
 
 class Grid_Entry():
@@ -39,6 +39,8 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
     # unausgefüllt!
 
     window = tk.Tk()
+    window.geometry("1000x650+50+0")
+
     window.title("Wähle die Personen und gib die Stunden ein")
     window.resizable(width=False, height=False)
     if user == "r":
@@ -162,7 +164,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
                                "Anzahl Einzelstunden":{"30 min":("D",22),"45 min":("D",23),"60 min":("D",24)},
                                "Anzahl Gruppenstunden":{"30 min":("F",22),"45 min":("F",23),"60 min":("F",24)},
                                "Anzahl Hausbesuche":("H",22)}
-            otherlocs = {"Ort, Datum":"E16","Rechnungsnummer":"E17"}
+            otherlocs = {"Ort, Datum":"I16","Rechnungsnummer":"I17"}
             costsdf = pd.DataFrame(columns=["Anzahl Einzelstunden", "Anzahl Gruppenstunden", "Anzahl Hausbesuche"])
             col_costdf = 3
 
@@ -194,10 +196,12 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
                         location = f"{excelsheet_locs[key][min][0]}{excelsheet_locs[key][min][1]+(clientindex-1)*cellsbetweenclients}"
                         # print(location)
                         amounthours = selected_clientdata[clientindex][key][min].gui_widget.get()
-                        invoice_tirol_sheet[location] = amounthours
                         if amounthours:
-                            cost = kostenstruktur[key][min] * float(amounthours)
+                            amounthours = float(amounthours)
+                            cost = kostenstruktur[key][min] * amounthours
                             costvalues = np.append(costvalues,float(cost))
+                        invoice_tirol_sheet[location] = amounthours
+
                     costsdf.loc[clientindex - 1,key] = costvalues.sum()
                 else:
                     location = f"{excelsheet_locs[key][0]}{excelsheet_locs[key][1]+(clientindex-1)*cellsbetweenclients}"
@@ -205,7 +209,8 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
                     if (key == "Anzahl Hausbesuche") or (key == "Anzahl Stunden"):
                         value = selected_clientdata[clientindex][key].gui_widget.get()
                         if value:
-                            costsdf.loc[clientindex - 1,key] = kostenstruktur[key]*float(value)
+                            value = float(value)
+                            costsdf.loc[clientindex - 1,key] = kostenstruktur[key]*value
                         invoice_tirol_sheet[location] = value
                     else:
                         if key == "Name":
@@ -223,6 +228,11 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
             costsdf["Ausgleichzulage"] = (costsdf["Anzahl Stunden"] ) * kostenstruktur["Ausgleichzulage"]
         costsdf["Summen"] = costsdf.sum(axis=1)
         totalsum  = costsdf["Summen"].sum(axis = 0)
+
+        names_this_invoice = []
+        for clientindex in range(1, amount_of_persons_LandTirol + 1):
+            name = selected_clientdata[clientindex]["Name"].gui_widget["text"]
+            names_this_invoice.append(name)
         window.destroy()
 
         #get invoice number
@@ -233,19 +243,38 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
         archive_which_invoices_path = os.path.join(outputdir_path, archive_which_invoices_name)
 
         print(f"Year to link this invoice to: {year_of_invoice}")
-        lastinvoice_num = check_invoice_archive(year_of_invoice,outputdir_suppath,archive_which_invoices_path,excel_template_path,invoicenumber_pattern= invoicenumber_pattern)
+        lastinvoice_num = check_invoice_archive(year_of_invoice,outputdir_path,archive_which_invoices_path,excel_template_path,invoicenumber_pattern= invoicenumber_pattern)
         print(f"lastinvoice_num: {lastinvoice_num}")
         thisinvoicenumber = question_next_invoice_number(year_of_invoice,lastinvoice_num,invoicenumber_pattern,invoicenumber_pattern_names)
         print(f"thisinvoicenumber{thisinvoicenumber}")
 
         invoice_tirol_sheet[otherlocs["Rechnungsnummer"]] = thisinvoicenumber
-
-
-        outputfile_path = os.path.join(outputdir_path, f"RE {thisinvoicenumber} {datetime.date.today().strftime('%d_%m_%Y')}.xlsx")
-        invoice_tirol.save(outputfile_path)
+        names_this_invoice = [x for x in names_this_invoice if x !="Auswählen"]
+        namesstring = ""
+        for name in names_this_invoice:
+            namesstring+= f"{name} "
+        outputfile_path = os.path.join(outputdir_path, f"RE {thisinvoicenumber} {namesstring}{datetime.date.today().strftime('%d_%m_%Y')}.xlsx")
         print(f"Speichern der Rechnungn in {outputfile_path}")
-        save_to_archive(thisinvoicenumber, datetime.datetime.today(), "", datetime.datetime.today(),
-                            datetime.datetime.today(), totalsum, archive_which_invoices_path)
+        invoice_tirol.save(outputfile_path)
+        print(f"Speichern des Kassabuchs in {archive_which_invoices_path}")
+        try_saving = True
+        while try_saving:
+            try:
+                save_to_archive(thisinvoicenumber, datetime.datetime.today(), "", datetime.datetime.today(),
+                                datetime.datetime.today(), totalsum, archive_which_invoices_path)
+
+                try_saving = False
+            except Exception as e:
+                def show_alert():
+                    # Display an alert message box with an "Okay" button
+                    tk.messagebox.showinfo("Fehler", f"Ich konnte die Datei nicht speichern. Schließe zuerst die Datei {archive_which_invoices_path}")
+                print("error in saving archive")
+                print(e)
+                root = tk.Tk()
+                root.withdraw()
+                show_alert()
+                print("The alert has been dismissed. Continuing with the rest of the code...")
+                root.quit()
 
         if os.name == 'posix':
             print("This system is Linux or another Unix-like system.")
@@ -258,22 +287,8 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
             print("This system is not Linux.")
             os.startfile(outputfile_path)
             os.startfile(archive_which_invoices_path)
-
-
-        # response = tk.messagebox.askyesno("Abschließen?",
-        #                                "Bist du mit dem Ergebnis zufrieden? \nWenn ja dann schließe ich nun das Program (du kannst immer noch im Excel Sachen ändern und dann von Excel speichern). \nWenn nein kannst du nun noch weiter im Programm sachen ändern.")
-        #
-        # if response:
-        #     print("Abschließen")
-        #
-        #     save_to_archive(thisinvoicenumber, datetime.datetime.today(), "", datetime.datetime.today(),
-        #                     datetime.datetime.today(), totalsum, archive_which_invoices_path)
-        #     os.startfile(archive_which_invoices_path)
-        #
-        # else:
-        #     print("Weiter machen")
-        #     # continue doesnot work fully
-        #     app.quit()
+        from Rechnung_erstellen import main
+        main()
 
 
 
