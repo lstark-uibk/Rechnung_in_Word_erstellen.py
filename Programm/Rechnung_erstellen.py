@@ -28,9 +28,9 @@ def main():
     nameoutputdir = ["year"]
     nameoutputarchivefile = ["Rechnungen ", "year",".xlsx"]
     if user == "r":
-        nameinvoicefile = ["RE-", "invoicenumber", "clientname", "date", ".docx"]
+        nameinvoicefile = ["RE ", "invoicenumber", "clientname", " " , "date", ".docx"]
     if user == "b":
-        nameinvoicefile = ["RE-", "invoicenumber", "clientname", "date", ".xlsx"]
+        nameinvoicefile = ["RE ", "invoicenumber", "clientname"," ", "date", ".xlsx"]
 
     invoicenumber_pattern = r'(\d{4})-(\d+)'
     invoicenumber_pattern_names = ["year","-","invoicenumber"]

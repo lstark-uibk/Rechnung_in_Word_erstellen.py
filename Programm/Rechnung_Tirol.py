@@ -30,7 +30,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
 
 
     allclientdata = pd.read_excel(allclientdata_path, index_col=0, header=None, sheet_name=None)
-
+    print(allclientdata)
     # select which client
     allclientsnames = list(allclientdata.keys())
     allclientsnames.sort()
@@ -57,7 +57,8 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
         collabel = tk.Label(master=window, text=columnname)
         collabel.grid(row=0, column=col, padx=10)
 
-    emptyclientdata = allclientdata[list(allclientdata.keys())[0]][1].copy()
+    emptyclientdata = allclientdata["Vorlage"].copy()
+    print(emptyclientdata)
     emptyclientdata[:] = ""
     emptyclientdata = emptyclientdata.to_dict()
     selected_clientdata = {}
@@ -164,7 +165,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
                                "Anzahl Einzelstunden":{"30 min":("D",22),"45 min":("D",23),"60 min":("D",24)},
                                "Anzahl Gruppenstunden":{"30 min":("F",22),"45 min":("F",23),"60 min":("F",24)},
                                "Anzahl Hausbesuche":("H",22)}
-            otherlocs = {"Ort, Datum":"I16","Rechnungsnummer":"I17"}
+            otherlocs = {"Ort, Datum":"I15","Rechnungsnummer":"I16"}
             costsdf = pd.DataFrame(columns=["Anzahl Einzelstunden", "Anzahl Gruppenstunden", "Anzahl Hausbesuche"])
             col_costdf = 3
 
@@ -219,7 +220,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
                                 invoice_tirol_sheet[location] = selected_clientdata[clientindex][key].gui_widget["text"]
                         else:
                             invoice_tirol_sheet[location] = selected_clientdata[clientindex][key].gui_widget["text"]
-                invoice_tirol_sheet[otherlocs["Ort, Datum"]]=f"Innsbruck, {datetime.datetime.today().strftime('%d.%m.%Y')}"
+                invoice_tirol_sheet[otherlocs["Ort, Datum"]]=f"{datetime.datetime.today().strftime('%d.%m.%Y')}"
 
         # calculate total sum
         if user == "r":
