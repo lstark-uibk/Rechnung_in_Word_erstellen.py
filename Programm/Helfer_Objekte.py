@@ -188,7 +188,8 @@ def select_client(options):
 
     search_entry = tk.Entry(root, width=80)
     search_entry.pack(pady=10)
-    searched_options = []
+    print(options)
+    searched_options = [options]
 
     def filter_list(event,so):
         searching_for = search_entry.get()
@@ -370,7 +371,7 @@ def show_matrix_window(matrix, frame, head = ("",""),lastdate = 0,fill='both',ex
 def ask_to_save(data_list):
     root = tk.Tk()
     root.title("Überprüfung")
-    root.geometry("700x800+50+30")
+    root.geometry("700x500+50+30")
     Label(root, text="Ich erstelle nun eine Rechnung mit folgenden Daten:").pack()
     data_list_without_hours = [x for x in data_list if "Stundeninfo" not in x[0] ]
     show_matrix_window(data_list_without_hours, root, head = ("","Wert"), fill="x",padx=0,pady=0)
