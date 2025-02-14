@@ -33,6 +33,8 @@ def main():
 
     invoicenumber_pattern = r'(\d{4})-(\d+)'
     invoicenumber_pattern_names = ["year","-","invoicenumber"]
+    invoicenumber_pattern_names_T = ["T","year","-","invoicenumber"]
+
 
     archive_which_invoices_path = 0
 
@@ -44,7 +46,7 @@ def main():
         if answer == "Tirol":
             print("Tirol")
             make_invoice_tirol(allclientdata_path,template_tirol_path,excel_template_path,outputdir_suppath,nameoutputdir,nameoutputarchivefile,
-                               invoicenumber_pattern, invoicenumber_pattern_names, user = user)
+                               invoicenumber_pattern, invoicenumber_pattern_names_T, user = user)
         elif answer == "Praxis":
             print("Praxis")
             make_invoice_praxis(allhourdata_path, allclientdata_path, excel_template_path, template_praxis_path,outputdir_suppath,

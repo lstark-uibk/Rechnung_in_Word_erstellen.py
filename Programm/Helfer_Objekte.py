@@ -291,10 +291,8 @@ def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoic
 
 
 
-def show_matrix_window(matrix, frame, head = ("",""),lastdate = 0,fill='both',expand = True,padx=10, pady=10):
-    print(lastdate)
-    if lastdate:
-        Title = tk.Label(frame, text=f"Die letze Rechnung für diese Person wurde am {lastdate} erstellt").pack(pady=10)
+def show_matrix_window(matrix, frame, head = ("","")):
+
     treeview = ttk.Treeview(frame, columns=head, show="headings")
 
     for colname in head:
@@ -310,7 +308,7 @@ def show_matrix_window(matrix, frame, head = ("",""),lastdate = 0,fill='both',ex
 
 
         treeview.insert("", tk.END,values=columntupel)
-    treeview.pack(padx=padx, pady=pady,fill=fill,expand = expand)
+    return treeview
 
     def motion_handler(tree, event):
         f = Font(font='TkDefaultFont')
@@ -371,13 +369,26 @@ def show_matrix_window(matrix, frame, head = ("",""),lastdate = 0,fill='both',ex
 def ask_to_save(data_list):
     root = tk.Tk()
     root.title("Überprüfung")
-    root.geometry("700x500+50+30")
-    Label(root, text="Ich erstelle nun eine Rechnung mit folgenden Daten:").pack()
+    root.geometry("1000x600+50+30")
+
+    mainframe = tk.Frame(root)
+    mainframe.pack()
+    left_frame = tk.Frame(mainframe)
+    right_frame = tk.Frame(mainframe)
+
+    left_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+    right_frame.pack(side="right", fill="both", expand=True, padx=10, pady=10)
+
+    Label(mainframe, text="Ich erstelle nun eine Rechnung mit folgenden Daten:").pack()
+
+    Label(left_frame, text="Daten PatientIn").pack()
     data_list_without_hours = [x for x in data_list if "Stundeninfo" not in x[0] ]
-    show_matrix_window(data_list_without_hours, root, head = ("","Wert"), fill="x",padx=0,pady=0)
-    Label(root, text="Stundendaten").pack()
+    datalist = show_matrix_window(data_list_without_hours, left_frame, head = ("","Wert"))
+    datalist.pack(fill="x",padx=0,pady=0)
+    Label(right_frame, text="Stundendaten").pack()
     hourdata =[x for x in data_list if "Stundeninfo" in x[0]][0][1]
-    show_matrix_window(list(hourdata.values),root,head=tuple(hourdata.columns),fill="x",padx=0,pady=0)
+    hourlist = show_matrix_window(list(hourdata.values),right_frame,head=tuple(hourdata.columns))
+    hourlist.pack(fill="x",padx=0,pady=0)
 
     Label(root, text="Soll ich nun einen Rechnung mit diesen Daten erstellen?").pack()
     yes_no_frame = tk.Frame(root)
@@ -428,7 +439,9 @@ def ask_right_invoicenumber(question):
 
 def get_date(hourdata,lastdate):
     selected_date = None
+
     root = tk.Tk()
+    root.geometry("1000x700+50+10")
     root.title("Auswahl des Rechnungszeitraums")
 
     left_frame = tk.Frame(root)
@@ -452,7 +465,11 @@ def get_date(hourdata,lastdate):
 
     tk.Button(left_frame, text="ok",height=2, width=20, font="Arial 14", command=root.destroy).pack(pady=10)
     data_list = hourdata.values.tolist()
-    show_matrix_window(data_list, right_frame,head = ("Rechnungsdatum","PatientIn","Stundendauer in min")  , lastdate=lastdate )
+    print(lastdate)
+    if lastdate:
+        Title = tk.Label(right_frame, text=f"Die letze Rechnung für diese Person wurde am {lastdate} erstellt").pack(pady=10)
+    datelist = show_matrix_window(data_list, right_frame,head = ("Rechnungsdatum","PatientIn","Stundendauer in min") )
+    datelist.pack()
     root.mainloop()
     return cal1.selection_get(), cal2.selection_get()
 

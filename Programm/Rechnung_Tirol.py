@@ -44,12 +44,12 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
     if user == "r":
         showvalues = ["Name", "Geb.", "Gültige Genehmigung Land Tirol ab", "Anzahl Einzelstunden", "Anzahl Gruppenstunden","Anzahl Hausbesuche"]
         columns = [0,1,2,4,7,9]
-        minutes = ["30 min", "45 min", "60 min"]
+        minuteslist = ["30 min", "45 min", "60 min"]
 
     if user == "b":
         showvalues = ["Name", "Geb.", "Gültige Genehmigung Land Tirol ab", "Anzahl Stunden", "Anzahl Hausbesuche"]
         columns = [0,1,2,3,4]
-        minutes = ["60 min"]
+        minuteslist = ["60 min"]
 
     for col, columnname in zip(columns,showvalues):
         collabel = tk.Label(master=window, text=columnname)
@@ -95,8 +95,12 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
                 selected_clientdata[clientindex]["Name"].value = selected_name
                 selected_clientdata[clientindex]["Geb."].gui_widget["text"] = thisclientdata["Geb."].strftime("%d.%m.%Y")
                 selected_clientdata[clientindex]["Geb."].value = thisclientdata["Geb."]
-                selected_clientdata[clientindex]["Gültige Genehmigung Land Tirol ab"].gui_widget["text"] = thisclientdata["Gültige Genehmigung Land Tirol ab"].strftime("%d.%m.%Y")
-                selected_clientdata[clientindex]["Gültige Genehmigung Land Tirol ab"].value = thisclientdata["Gültige Genehmigung Land Tirol ab"]
+                try:
+                    selected_clientdata[clientindex]["Gültige Genehmigung Land Tirol ab"].gui_widget["text"] = thisclientdata["Gültige Genehmigung Land Tirol ab"].strftime("%d.%m.%Y")
+                    selected_clientdata[clientindex]["Gültige Genehmigung Land Tirol ab"].value = thisclientdata["Gültige Genehmigung Land Tirol ab"]
+                except Exception as e:
+                    print("Würde keine Gültige Genehmigung Land Tirol angegeben für diese Person?")
+                    print(e)
 
         clicked = tk.StringVar()
         clicked.set("Auswählen")
@@ -143,12 +147,14 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
                               "Anzahl Gruppenstunden": {},
                               "Anzahl Hausbesuche":invoice_tirol_sheet["H25"].value,
                               "Ausgleichzulage": float(invoice_tirol_sheet["H26"].value)}
-            for i,min in zip(range(22, 25),minutes):
+            print(minuteslist)
+            for i,min in zip(range(22, 25),minuteslist):
+                print(min)
                 kostenstruktur["Anzahl Einzelstunden"][min] = invoice_tirol_sheet[f"E{i}"].value
 
-            for i,min in zip(range(22, 25),minutes):
+            for i,min in zip(range(22, 25),minuteslist):
                 kostenstruktur["Anzahl Gruppenstunden"][min] = invoice_tirol_sheet[f"G{i}"].value
-
+            print(kostenstruktur)
             cellsbetweenclients = 7
             excelsheet_locs = {"Name":("A",22),
                                "Geb.":("B",22),
@@ -158,7 +164,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
                                "Anzahl Hausbesuche":("H",22)}
             otherlocs = {"Ort, Datum":"E16","Rechnungsnummer":"E17"}
             costsdf = pd.DataFrame(columns=["Anzahl Einzelstunden", "Anzahl Gruppenstunden", "Anzahl Hausbesuche"])
-            col_costdf = 2
+            col_costdf = 3
 
 
         if user == "b":
@@ -174,9 +180,10 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
             kostenstruktur = { "Anzahl Stunden": invoice_tirol_sheet["E21"].value, #anzahl sollte eigentlich Hier Kosten heissen
                               "Anzahl Hausbesuche":invoice_tirol_sheet["F22"].value,
                               "Ausgleichzulage": invoice_tirol_sheet["F23"].value}
+
             costsdf = pd.DataFrame(columns=["Anzahl Stunden", "Anzahl Hausbesuche"])
             col_costdf = 2
-
+        print(kostenstruktur)
         for clientindex in range(1, amount_of_persons_LandTirol + 1):
             costsdf.loc[clientindex - 1] = [0]*col_costdf
             # print(selected_clientdata[clientindex]["Name"].gui_widget["text"])
