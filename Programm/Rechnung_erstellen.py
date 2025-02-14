@@ -67,7 +67,7 @@ def main():
     button2 = tk.Button(root, text="Rechnung ans Land Tirol erstellen", command=lambda: set_answer("Tirol"))
     button2.pack(pady=10,padx=10)
 
-    button3 = tk.Button(root, text="Neuen Klienten anlegen", command=lambda: set_answer("Neu"))
+    button3 = tk.Button(root, text="Neue Person anlegen", command=lambda: set_answer("Neu"))
     button3.pack(pady=10,padx=10)
 
     root.mainloop()

@@ -260,7 +260,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
         try_saving = True
         while try_saving:
             try:
-                save_to_archive(thisinvoicenumber, datetime.datetime.today(), "", datetime.datetime.today(),
+                save_to_archive(thisinvoicenumber, datetime.datetime.today(), namesstring, datetime.datetime.today(),
                                 datetime.datetime.today(), totalsum, archive_which_invoices_path)
 
                 try_saving = False
