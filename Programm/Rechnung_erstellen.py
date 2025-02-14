@@ -7,9 +7,10 @@ from  Neue_Person import make_new_Person
 
 def main():
     parent_dir = os.path.dirname(os.path.realpath(__file__))
-    # user = "r"
-    user = "b"
+    user = "r"
+    #user = "b"
     supparentdir = os.path.dirname(parent_dir)
+    supsupparentdir = os.path.dirname(supparentdir)
     if user == "r":
         template_praxis_path = os.path.join(supparentdir, "Vorlagen/VorlageRosmarie.docx")
         template_tirol_path = os.path.join(supparentdir, "Vorlagen/Vorlage_LandTirol_Rosmarie.xlsx")
@@ -20,11 +21,11 @@ def main():
 
 
     excel_template_path = os.path.join(supparentdir, "Vorlagen/Jahresübersicht_Vorlage.xlsx")
-    allhourdata_path = os.path.join(supparentdir, "Daten/Stundendaten.xlsx")
-    allclientdata_path = os.path.join(supparentdir, "Daten/PatientInneninformationen.xlsx")
+    allhourdata_path = os.path.join(supsupparentdir, "Daten/Stundendaten.xlsx")
+    allclientdata_path = os.path.join(supsupparentdir, "Daten/PatientInneninformationen.xlsx")
     outputdir_suppath = supparentdir
     nameoutputdir = ["Rechnungen ", "year"]
-    nameoutputarchivefile = ["Kassabuch ", "year",".xlsx"]
+    nameoutputarchivefile = ["Rechnungen ", "year",".xlsx"]
     if user == "r":
         nameinvoicefile = ["RE-", "invoicenumber", "clientname", "date", ".docx"]
     if user == "b":

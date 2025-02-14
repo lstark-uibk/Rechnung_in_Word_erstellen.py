@@ -188,13 +188,14 @@ def select_client(options):
 
     search_entry = tk.Entry(root, width=80)
     search_entry.pack(pady=10)
+    searched_options = []
 
-    def filter_list(event):
+    def filter_list(event,so):
         searching_for = search_entry.get()
-        print(searching_for)
         if isinstance(searching_for,str):
             search_term = search_entry.get().lower()
             filtered_options = [option for option in options if search_term in option.lower()]
+            so.append(filtered_options)
 
             # Clear the current listbox
             listbox.delete(0, tk.END)
@@ -202,7 +203,7 @@ def select_client(options):
             # Add filtered options to the listbox
             for option in filtered_options:
                 listbox.insert(tk.END, option)
-    search_entry.bind('<KeyRelease>', filter_list)
+    search_entry.bind('<KeyRelease>', lambda event, so= searched_options: filter_list(event,so))
 
     frame = tk.Frame(root)
     frame.pack(pady=10)
@@ -226,7 +227,11 @@ def select_client(options):
         selected = listbox.curselection()
         if selected:
             index, = listbox.curselection()
-            selected_name[0] =  options[index]
+            last_selected = searched_options[-1]
+            print(index)
+            print(last_selected)
+            selected_name[0] =  last_selected[index]
+            print(selected_name)
             # selected_name = options[index]
             root.destroy()
 
