@@ -249,7 +249,9 @@ def select_client(options):
 def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoice_end_date,summe,archive_which_invoices_path):
     ws_archive_which_invoices = openpyxl.load_workbook(archive_which_invoices_path)
     archive_which_invoices = ws_archive_which_invoices.worksheets[0]
-    invoiceduration = invoice_start_date.strftime("%d.%m.%Y") + " - " + invoice_end_date.strftime("%d.%m.%Y")
+    invoiceduration = invoice_start_date.strftime("%d.%m.%Y")
+    if invoice_end_date:
+        invoiceduration += f" - {invoice_end_date.strftime('%d.%m.%Y')}"
     #datetoday = datetime.datetime.strptime(datetoday, "%d.%m.%Y")
     inputdata = [invoicenumber,datetoday, clientname, invoiceduration, summe]
 

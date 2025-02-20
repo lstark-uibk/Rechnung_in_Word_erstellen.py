@@ -102,43 +102,19 @@ def make_new_Person(allclientdata_path):
             try:
                 excelsheet_with_added_person.save(allclientdata_path)
             except: messagebox.showinfo("Fehler","Konnte die Excel nicht speichern.\nSind PatientInneninfomationen schon in excel geöffnet? \nWenn ja schließe diese bitte")
+            if os.name == 'posix':
+                print("This system is Linux or another Unix-like system.")
+                import subprocess
+                from sys import platform
+                if platform == 'darwin':  # apple
+                    subprocess.call(['open', allclientdata_path])
 
-            app = xw.App(visible=True)  # Set visible=True to see the Excel window
-            workbook = app.books.open(allclientdata_path)
-            try:
-                # Get the sheet by name
-                sheet = workbook.sheets[userinputsdict["Name"]]
-                # Activate the sheet
-                sheet.activate()
-            except:
-                pass
-
-            print("Ich habe eine neues Blatt für " + userinputsdict[
-                "Name"] + " zur PatienInneninformations Exceldatei hinzugefügt")
-            print("Mit diesen Einträgen: ")
-            print(userinputsdict)
-            root.withdraw()
-            response = messagebox.askyesno("Abschließen?",
-                                           "Bist du mit dem Ergebnis zufrieden? \nWenn ja dann schließe ich nun das Program (du kannst immer noch im Excel Sachen ändern und dann von Excel speichern). \nWenn nein kannst du nun noch weiter im Programm sachen ändern.")
-
-            if response:
-                print("Abschließen")
-                root.destroy()
-                from Rechnung_erstellen import main
-                main()
+                else:
+                    subprocess.run(['xdg-open', allclientdata_path])
 
             else:
-                print("Weiter machen")
-                app.quit()
-                root.deiconify()
-
-        else:
-            print("Es war was Falsch eingegeben")
-            print(validated_wrong)
-            Errormessages.config(text=errormessages[0])
-            for i in validated_wrong:
-                entries[i].config(bg="yellow")
-    erromessage = tk.StringVar()
+                print("This system is not Linux.")
+                os.startfile(allclientdata_path)
     Errormessages = tk.Label(root, textvariable="")
     Errormessages.grid(column=1, row=len(datatoinquire) + 2)
     tk.Button(root, text="Speichern", command=submit).grid(column=1, row=len(datatoinquire) + 1)

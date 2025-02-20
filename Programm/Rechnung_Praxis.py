@@ -1,5 +1,6 @@
 from docxtpl import DocxTemplate
 import openpyxl
+from openpyxl.styles import Border
 import pandas as pd
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx import Document
@@ -14,7 +15,8 @@ import tkinter as tk
 
 
 def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,template_path,outputdir_suppath,
-                        nameouptutdir,nameoutputarchivefile, invoicenumber_pattern, invoicenumber_pattern_names, nameinvoicefile,user = "r"):
+                        nameouptutdir,nameoutputarchivefile, invoicenumber_pattern,
+                        invoicenumber_pattern_names, nameinvoicefile,kassabuchdir,user = "r"):
     ### parameters:
 
 
@@ -26,6 +28,7 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
 
     #select which client
     allclientsnames = list(allclientdata.keys())
+    allclientsnames = [x for x in allclientsnames if x != "Vorlage"]
     allclientsnames.sort()
     clientname = select_client(
         allclientsnames
@@ -69,7 +72,11 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
 
     #now get the invoice archive or make new archive and check for invoice numbers
     archive_which_invoices_name = stringsandyear_topath(nameoutputarchivefile,year_of_invoice)
-    archive_which_invoices_path = os.path.join(outputdir_path, archive_which_invoices_name)
+    if user == "b":
+        archive_which_invoices_path = os.path.join(kassabuchdir, archive_which_invoices_name)
+    if user == "r":
+        archive_which_invoices_path = os.path.join(outputdir_path, archive_which_invoices_name)
+
     print(f"Year to link this invoice to: {year_of_invoice}")
     lastinvoice_num = check_invoice_archive(year_of_invoice, outputdir_path, archive_which_invoices_path,
                                             excel_template_path, invoicenumber_pattern= invoicenumber_pattern)
@@ -100,13 +107,18 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
 
     clientdata["Rechnungsnummer"] = thisinvoicenumber
     clientdata["Heute"] = datetime.date.today().strftime("%d.%m.%Y")
-    if clientdata["Kind"] == "ja":
-        if clientdata["Geschlecht"] == "m":
-            clientfirstname = clientdata["Name"].split()[0]
-            clientdata["Wordkindtext"] = " für Ihren Sohn " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
-        if clientdata["Geschlecht"] == "w":
-            clientfirstname = clientdata["Name"].split()[0]
-            clientdata["Wordkindtext"] = " für Ihre Tochter " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
+    clientdata["Wordkindtext"] = ""
+    try:
+        if clientdata["Kind"] == "ja":
+            if clientdata["Geschlecht"] == "m":
+                clientfirstname = clientdata["Name"].split()[0]
+                clientdata["Wordkindtext"] = " für Ihren Sohn " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
+            if clientdata["Geschlecht"] == "w":
+                clientfirstname = clientdata["Name"].split()[0]
+                clientdata["Wordkindtext"] = " für Ihre Tochter " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
+    except Exception as e:
+        print("No birthday?")
+        print(e)
 
 
     #preprocessdata
@@ -163,10 +175,23 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
                            "Heute": ("J", 14),
                            "Rechnungsnummer": ("J", 15),
                            "Versicherungsnummer": ("J", 17)}
-        usevalues = ["Name", "Adresse", "Stadt", "Heute", "Rechnungsnummer", "Versicherungsnummer"]
+        usevalues = ["Name", "Adresse", "Stadt", "Heute", "Rechnungsnummer"]
         for value in usevalues:
             location = f"{excelsheet_locs[value][0]}{excelsheet_locs[value][1]}"
             invoice_sheet[location] = f"{clientdata[value]}"
+        if not np.isnan(clientdata["Versicherungsnummer"]):
+            location = f"{excelsheet_locs["Versicherungsnummer"][0]}{excelsheet_locs["Versicherungsnummer"][1]}"
+            invoice_sheet[location] = f"{clientdata["Versicherungsnummer"]}"
+        else:
+            print("no insurance number")
+            location = f"H{excelsheet_locs["Versicherungsnummer"][1]}"
+            invoice_sheet[location] = ""
+            location = f"{excelsheet_locs["Versicherungsnummer"][0]}{excelsheet_locs["Versicherungsnummer"][1]}"
+            invoice_sheet[location].border = Border()
+            location = f"{"K"}{excelsheet_locs["Versicherungsnummer"][1]}"
+            invoice_sheet[location].border = Border()
+
+
 
         firstrows_hourdata = {"Datum": ("C", 22), "Anzahl": ("E", 22), "Preis/Einh.": ("G", 22)}
 
@@ -195,7 +220,7 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
         try_saving = True
         while try_saving:
             try:
-                save_to_archive(thisinvoicenumber,clientdata["Heute"],clientname,invoice_start_date,invoice_end_date,totalamount,archive_which_invoices_path)
+                save_to_archive(thisinvoicenumber,datetime.datetime.today(),clientname,invoice_start_date,invoice_end_date,totalamount,archive_which_invoices_path)
                 try_saving = False
             except Exception as e:
                 def show_alert():
@@ -220,8 +245,14 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
         if os.name == 'posix':
             print("This system is Linux or another Unix-like system.")
             import subprocess
-            subprocess.run(['xdg-open', archive_which_invoices_path])
-            subprocess.run(['xdg-open', outputfile_path])
+            from sys import platform
+            if platform == 'darwin': #apple
+                subprocess.call(['open', archive_which_invoices_path])
+                subprocess.call(['open', outputfile_path])
+
+            else:
+                subprocess.run(['xdg-open', archive_which_invoices_path])
+                subprocess.run(['xdg-open', outputfile_path])
 
         else:
             print("This system is not Linux.")
