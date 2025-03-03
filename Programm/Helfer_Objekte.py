@@ -1,4 +1,6 @@
 from tkinter import *
+
+from lxml.etree import clear_error_log
 from tkcalendar import Calendar, DateEntry
 from functools import partial
 import pandas as pd
@@ -82,6 +84,7 @@ def check_invoice_archive(year_of_invoice,outputdir_path,archive_which_invoices_
     lastinvoice_num = 0
     for index, entry in invoicenumbers.iloc[::-1].items():
         if not pd.isnull(entry):
+            entry = str(entry)
             if re.match(invoicenumber_pattern, entry):
                 lastinvoice_year_num = re.match(invoicenumber_pattern, entry)[0]
                 lastinvoice_year = int(re.match(invoicenumber_pattern, entry)[1])
@@ -147,7 +150,10 @@ def validate_input_int(char, input_value):
         return True
     try:
         # Try to convert the input value to an integer
-        int(input_value)
+        input_value = input_value.replace('.','')
+        input_value = input_value.replace(',','.')
+        print(input_value)
+        float(input_value)
         return True
     except ValueError:
         return False
@@ -247,43 +253,46 @@ def select_client(options):
 
 
 def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoice_end_date,summe,archive_which_invoices_path):
+    invoicenumber = int(invoicenumber)
     ws_archive_which_invoices = openpyxl.load_workbook(archive_which_invoices_path)
     archive_which_invoices = ws_archive_which_invoices.worksheets[0]
-    invoiceduration = invoice_start_date.strftime("%d.%m.%Y") + " - " + invoice_end_date.strftime("%d.%m.%Y")
+    invoiceduration = invoice_start_date.strftime("%d.%m.%Y")
+    if invoice_end_date:
+        invoiceduration += f" - {invoice_end_date.strftime('%d.%m.%Y')}"
     #datetoday = datetime.datetime.strptime(datetoday, "%d.%m.%Y")
     inputdata = [invoicenumber,datetoday, clientname, invoiceduration, summe]
 
-    last_row = archive_which_invoices.max_row
-    last_row_data = 0 #last row of invoice data (not sums etc)
-    sumrow = True
-    i = last_row
-    while True:
-        if sumrow:
-            if archive_which_invoices.cell(i, 1).value is not None: # check whether there is a sum row
-                i -=1
-            else:
-                sumrow = False
+    last_row_of_data = 0
+    # so first row from bottom which is empty designates finish of data
+    for row in archive_which_invoices:
+        if any(cell.value is not None for cell in row):
+            last_row_of_data += 1
         else:
-            if archive_which_invoices.cell(i, 1).value is None:  # check whether there is an empty row over a sum row
-                i -= 1
-            else:
-                print(f"last datarow = {i}, {[cell.value for cell in archive_which_invoices[i]]}")
-                last_row_data = i
-                break
-    archive_which_invoices.insert_rows(last_row_data+1)
+            break
+    print(f"last row of data = {last_row_of_data}")
+    # first row with Summe: designates Sum row
+    sum_row = archive_which_invoices.max_row
+    for index,row in enumerate(archive_which_invoices):
+        if row[0].value == "Summe:":
+            sum_row = index + 1
+    print(f"sum_row = {sum_row}")
+
+    archive_which_invoices.insert_rows(last_row_of_data+1)
+    sum_row += 1
+    last_row_of_data += 1
     last_row = archive_which_invoices.max_row
     for col, value in zip(range(1, len(inputdata) + 1), inputdata):
-        archive_which_invoices.cell(row=last_row_data+1, column=col, value=value)
-        archive_which_invoices.cell(last_row_data+1,5).number_format = '€* #,##0.00'
-        archive_which_invoices.cell(last_row_data+1,2).number_format = 'DD.MM.YYYY'
+        archive_which_invoices.cell(row=last_row_of_data, column=col, value=value)
+        archive_which_invoices.cell(last_row_of_data,5).number_format = '€* #,##0.00'
+        archive_which_invoices.cell(last_row_of_data,2).number_format = 'DD.MM.YYYY'
 
-    cell_sum_invoiced = archive_which_invoices.cell(last_row-1, 5)
-    cell_sum_paid = archive_which_invoices.cell(last_row-1, 7)
-    cell_diff_inv_paid = archive_which_invoices.cell(last_row, 7)
+    cell_sum_invoiced = archive_which_invoices.cell(sum_row, 5)
+    cell_sum_paid = archive_which_invoices.cell(sum_row, 7)
+    cell_diff_inv_paid = archive_which_invoices.cell(sum_row+1, 7)
 
-    cell_sum_invoiced.value = f"=SUM(E2:E{last_row-2})"
-    cell_sum_paid.value = f"=SUM(G2:G{last_row-2})"
-    cell_diff_inv_paid.value = f"=E{last_row-1}-G{last_row-1}"
+    cell_sum_invoiced.value = f"=SUM(E2:E{last_row_of_data})"
+    cell_sum_paid.value = f"=SUM(G2:G{last_row_of_data})"
+    cell_diff_inv_paid.value = f"=E{sum_row}-G{sum_row}"
 
 
 

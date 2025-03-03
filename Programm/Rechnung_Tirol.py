@@ -4,7 +4,8 @@ import pandas as pd
 import os
 import datetime
 # from PyInquirer import prompt
-from Helfer_Objekte import check_invoice_archive, question_next_invoice_number,save_to_archive, validate_input_int, stringsandyear_topath, on_name_select
+from Helfer_Objekte import (check_invoice_archive, question_next_invoice_number,save_to_archive,
+                            validate_input_int, stringsandyear_topath, stringsandinvoicenumber_topath)
 import tkinter as tk
 
 class Grid_Entry():
@@ -14,7 +15,7 @@ class Grid_Entry():
 
 
 def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path,outputdir_suppath,nameoutputdir,nameoutputarchivefile,
-                       invoicenumber_pattern, invoicenumber_pattern_names, user = "r"):
+                       invoicenumber_pattern, invoicenumber_pattern_names,nameinvoicefile, kassabuchdir,user = "r"):
     if user == "r":
         amount_of_persons_LandTirol = 3
     if user == "b":
@@ -22,10 +23,10 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
 
 
 
-    invoicenumber_pattern = r'(\d{4})-(\d+)'
+    #invoicenumber_pattern = r'(\d{4})-(\d+)'
     # invoicenumber_pattern = r'(T\d{4})-(\d+)'
     # invoicenumber_pattern_names = ["T","year","-","invoicenumber"]
-    invoicenumber_pattern_names = ["year","-","invoicenumber"]
+    #invoicenumber_pattern_names = ["year","-","invoicenumber"]
 
 
 
@@ -33,6 +34,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
     print(allclientdata)
     # select which client
     allclientsnames = list(allclientdata.keys())
+    allclientsnames = [x for x in allclientsnames if x != "Vorlage"]
     allclientsnames.sort()
 
 
@@ -241,7 +243,10 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
         outputdir = stringsandyear_topath(nameoutputdir, year_of_invoice)
         outputdir_path = os.path.join(outputdir_suppath, outputdir)
         archive_which_invoices_name = stringsandyear_topath(nameoutputarchivefile, year_of_invoice)
-        archive_which_invoices_path = os.path.join(outputdir_path, archive_which_invoices_name)
+        if user == "b":
+            archive_which_invoices_path = os.path.join(kassabuchdir, archive_which_invoices_name)
+        if user == "r":
+            archive_which_invoices_path = os.path.join(outputdir_path, archive_which_invoices_name)
 
         print(f"Year to link this invoice to: {year_of_invoice}")
         lastinvoice_num = check_invoice_archive(year_of_invoice,outputdir_path,archive_which_invoices_path,excel_template_path,invoicenumber_pattern= invoicenumber_pattern)
@@ -254,7 +259,11 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
         namesstring = ""
         for name in names_this_invoice:
             namesstring+= f"{name} "
-        outputfile_path = os.path.join(outputdir_path, f"RE {thisinvoicenumber} {namesstring}{datetime.date.today().strftime('%d_%m_%Y')}.xlsx")
+        filename = stringsandinvoicenumber_topath(nameinvoicefile, thisinvoicenumber, "Land Tirol",
+                                                  datetime.date.today().strftime('%d_%m_%Y'))
+        outputfile_path = os.path.join(outputdir_path, filename)
+        print(f"Now i can create the outputdata filepaths:   \n{archive_which_invoices_path}\n{outputfile_path}")
+
         print(f"Speichern der Rechnungn in {outputfile_path}")
         invoice_tirol.save(outputfile_path)
         print(f"Speichern des Kassabuchs in {archive_which_invoices_path}")
@@ -262,7 +271,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
         while try_saving:
             try:
                 save_to_archive(thisinvoicenumber, datetime.datetime.today(), namesstring, datetime.datetime.today(),
-                                datetime.datetime.today(), totalsum, archive_which_invoices_path)
+                                "", totalsum, archive_which_invoices_path)
 
                 try_saving = False
             except Exception as e:
@@ -280,9 +289,14 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
         if os.name == 'posix':
             print("This system is Linux or another Unix-like system.")
             import subprocess
-            subprocess.run(['xdg-open', outputfile_path])
-            subprocess.run(['xdg-open', archive_which_invoices_path])
+            from sys import platform
+            if platform == 'darwin': #apple
+                subprocess.call(['open', archive_which_invoices_path])
+                subprocess.call(['open', outputfile_path])
 
+            else:
+                subprocess.run(['xdg-open', archive_which_invoices_path])
+                subprocess.run(['xdg-open', outputfile_path])
 
         else:
             print("This system is not Linux.")
