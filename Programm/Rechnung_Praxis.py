@@ -1,6 +1,5 @@
 from docxtpl import DocxTemplate
 import openpyxl
-from openpyxl.styles import Border
 import pandas as pd
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx import Document
@@ -28,11 +27,6 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
 
     #select which client
     allclientsnames = list(allclientdata.keys())
-    allclientsnames_sheetnames = [x for x in allclientsnames if x != "Vorlage"]
-
-    allclientsnames = [allclientdata[x][1]["Name"] for x in allclientsnames_sheetnames]
-
-    print(allclientsnames)
     allclientsnames.sort()
     clientname = select_client(
         allclientsnames
@@ -76,11 +70,7 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
 
     #now get the invoice archive or make new archive and check for invoice numbers
     archive_which_invoices_name = stringsandyear_topath(nameoutputarchivefile,year_of_invoice)
-    if user == "b":
-        archive_which_invoices_path = os.path.join(kassabuchdir, archive_which_invoices_name)
-    if user == "r":
-        archive_which_invoices_path = os.path.join(outputdir_path, archive_which_invoices_name)
-
+    archive_which_invoices_path = os.path.join(outputdir_path, archive_which_invoices_name)
     print(f"Year to link this invoice to: {year_of_invoice}")
     lastinvoice_num = check_invoice_archive(year_of_invoice, outputdir_path, archive_which_invoices_path,
                                             excel_template_path, invoicenumber_pattern= invoicenumber_pattern)
@@ -111,18 +101,13 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
 
     clientdata["Rechnungsnummer"] = thisinvoicenumber
     clientdata["Heute"] = datetime.date.today().strftime("%d.%m.%Y")
-    clientdata["Wordkindtext"] = ""
-    try:
-        if clientdata["Kind"] == "ja":
-            if clientdata["Geschlecht"] == "m":
-                clientfirstname = clientdata["Name"].split()[0]
-                clientdata["Wordkindtext"] = " für Ihren Sohn " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
-            if clientdata["Geschlecht"] == "w":
-                clientfirstname = clientdata["Name"].split()[0]
-                clientdata["Wordkindtext"] = " für Ihre Tochter " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
-    except Exception as e:
-        print("No birthday?")
-        print(e)
+    if clientdata["Kind"] == "ja":
+        if clientdata["Geschlecht"] == "m":
+            clientfirstname = clientdata["Name"].split()[0]
+            clientdata["Wordkindtext"] = " für Ihren Sohn " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
+        if clientdata["Geschlecht"] == "w":
+            clientfirstname = clientdata["Name"].split()[0]
+            clientdata["Wordkindtext"] = " für Ihre Tochter " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
 
 
     #preprocessdata
@@ -179,36 +164,20 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
                            "Heute": ("J", 14),
                            "Rechnungsnummer": ("J", 15),
                            "Versicherungsnummer": ("J", 17)}
-        usevalues = ["Name", "Adresse", "Stadt", "Heute", "Rechnungsnummer"]
+        usevalues = ["Name", "Adresse", "Stadt", "Heute", "Rechnungsnummer", "Versicherungsnummer"]
         for value in usevalues:
             location = f"{excelsheet_locs[value][0]}{excelsheet_locs[value][1]}"
             invoice_sheet[location] = f"{clientdata[value]}"
-        if not np.isnan(clientdata["Versicherungsnummer"]):
-            location = f"{excelsheet_locs["Versicherungsnummer"][0]}{excelsheet_locs["Versicherungsnummer"][1]}"
-            invoice_sheet[location] = f"{clientdata["Versicherungsnummer"]}"
-        else:
-            print("no insurance number")
-            location = f"H{excelsheet_locs["Versicherungsnummer"][1]}"
-            invoice_sheet[location] = ""
-            location = f"{excelsheet_locs["Versicherungsnummer"][0]}{excelsheet_locs["Versicherungsnummer"][1]}"
-            invoice_sheet[location].border = Border()
-            location = f"{"K"}{excelsheet_locs["Versicherungsnummer"][1]}"
-            invoice_sheet[location].border = Border()
 
-        leistung_text = "Logopädieeinheit"
-        if clientdata["Selbstbehalt"] == "ja":
-            leistung_text = "Logopädieinheit Selbstbehalt"
-
-        firstrows_hourdata = {"Datum": ("B", 22), "Leistungsbez": ("D", 22), "Preis/Einh.": ("G", 22),"Preis/Einh.": ("G", 22),"Sum":("I", 22)}
+        firstrows_hourdata = {"Datum": ("C", 22), "Anzahl": ("E", 22), "Preis/Einh.": ("G", 22)}
 
         i = 0
         for row, session in namehourdata.iterrows():
             invoice_sheet[f"{firstrows_hourdata['Datum'][0]}{firstrows_hourdata['Datum'][1] + i}"] = session["Datum"]
-            invoice_sheet[f"{firstrows_hourdata['Datum'][0]}{firstrows_hourdata['Datum'][1] + i}"].number_format = 'DD.MM.YYYY'
-            invoice_sheet[f"{firstrows_hourdata['Leistungsbez'][0]}{firstrows_hourdata['Leistungsbez'][1] + i}"] = f"{leistung_text} {str(round(session['Minuten'] / 60,2)).replace('.',',')} h"
-            invoice_sheet[f"{firstrows_hourdata['Preis/Einh.'][0]}{firstrows_hourdata['Preis/Einh.'][1] + i}"] = clientdata["Stundensatz"]
-            invoice_sheet[f"{firstrows_hourdata['Sum'][0]}{firstrows_hourdata['Sum'][1] + i}"] = round((session['Minuten'] / 60)*clientdata["Stundensatz"],2)
-
+            invoice_sheet[f"{firstrows_hourdata['Anzahl'][0]}{firstrows_hourdata['Anzahl'][1] + i}"] = session[
+                                                                                                           "Minuten"] / 60
+            invoice_sheet[f"{firstrows_hourdata['Preis/Einh.'][0]}{firstrows_hourdata['Preis/Einh.'][1] + i}"] = \
+            clientdata["Stundensatz"]
             i += 1
 
     # now ask to save
@@ -227,7 +196,7 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
         try_saving = True
         while try_saving:
             try:
-                save_to_archive(thisinvoicenumber,datetime.datetime.today(),clientname,invoice_start_date,invoice_end_date,totalamount,archive_which_invoices_path)
+                save_to_archive(thisinvoicenumber,clientdata["Heute"],clientname,invoice_start_date,invoice_end_date,totalamount,archive_which_invoices_path)
                 try_saving = False
             except Exception as e:
                 def show_alert():
@@ -252,14 +221,8 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
         if os.name == 'posix':
             print("This system is Linux or another Unix-like system.")
             import subprocess
-            from sys import platform
-            if platform == 'darwin': #apple
-                subprocess.call(['open', archive_which_invoices_path])
-                subprocess.call(['open', outputfile_path])
-
-            else:
-                subprocess.run(['xdg-open', archive_which_invoices_path])
-                subprocess.run(['xdg-open', outputfile_path])
+            subprocess.run(['xdg-open', archive_which_invoices_path])
+            subprocess.run(['xdg-open', outputfile_path])
 
         else:
             print("This system is not Linux.")
