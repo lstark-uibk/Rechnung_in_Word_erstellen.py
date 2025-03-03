@@ -51,7 +51,7 @@ def main():
         if answer == "Tirol":
             print("Tirol")
             make_invoice_tirol(allclientdata_path,template_tirol_path,excel_template_path,outputdir_suppath,nameoutputdir,nameoutputarchivefile,
-                               invoicenumber_pattern, invoicenumber_pattern_names, kassbuchdir,user = user)
+                               invoicenumber_pattern, invoicenumber_pattern_names, nameinvoicefile,kassbuchdir,user = user)
         elif answer == "Praxis":
             print("Praxis")
             make_invoice_praxis(allhourdata_path, allclientdata_path, excel_template_path, template_praxis_path,outputdir_suppath,

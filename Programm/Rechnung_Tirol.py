@@ -4,7 +4,8 @@ import pandas as pd
 import os
 import datetime
 # from PyInquirer import prompt
-from Helfer_Objekte import check_invoice_archive, question_next_invoice_number,save_to_archive, validate_input_int, stringsandyear_topath, on_name_select
+from Helfer_Objekte import (check_invoice_archive, question_next_invoice_number,save_to_archive,
+                            validate_input_int, stringsandyear_topath, stringsandinvoicenumber_topath)
 import tkinter as tk
 
 class Grid_Entry():
@@ -14,7 +15,7 @@ class Grid_Entry():
 
 
 def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path,outputdir_suppath,nameoutputdir,nameoutputarchivefile,
-                       invoicenumber_pattern, invoicenumber_pattern_names, kassabuchdir,user = "r"):
+                       invoicenumber_pattern, invoicenumber_pattern_names,nameinvoicefile, kassabuchdir,user = "r"):
     if user == "r":
         amount_of_persons_LandTirol = 3
     if user == "b":
@@ -258,7 +259,11 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
         namesstring = ""
         for name in names_this_invoice:
             namesstring+= f"{name} "
-        outputfile_path = os.path.join(outputdir_path, f"RE {thisinvoicenumber} {namesstring}{datetime.date.today().strftime('%d_%m_%Y')}.xlsx")
+        filename = stringsandinvoicenumber_topath(nameinvoicefile, thisinvoicenumber, "Land Tirol",
+                                                  datetime.date.today().strftime('%d_%m_%Y'))
+        outputfile_path = os.path.join(outputdir_path, filename)
+        print(f"Now i can create the outputdata filepaths:   \n{archive_which_invoices_path}\n{outputfile_path}")
+
         print(f"Speichern der Rechnungn in {outputfile_path}")
         invoice_tirol.save(outputfile_path)
         print(f"Speichern des Kassabuchs in {archive_which_invoices_path}")

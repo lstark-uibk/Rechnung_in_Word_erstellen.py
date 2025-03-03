@@ -28,7 +28,11 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
 
     #select which client
     allclientsnames = list(allclientdata.keys())
-    allclientsnames = [x for x in allclientsnames if x != "Vorlage"]
+    allclientsnames_sheetnames = [x for x in allclientsnames if x != "Vorlage"]
+
+    allclientsnames = [allclientdata[x][1]["Name"] for x in allclientsnames_sheetnames]
+
+    print(allclientsnames)
     allclientsnames.sort()
     clientname = select_client(
         allclientsnames
@@ -191,17 +195,20 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
             location = f"{"K"}{excelsheet_locs["Versicherungsnummer"][1]}"
             invoice_sheet[location].border = Border()
 
+        leistung_text = "Logopädieeinheit"
+        if clientdata["Selbstbehalt"] == "ja":
+            leistung_text = "Logopädieinheit Selbstbehalt"
 
-
-        firstrows_hourdata = {"Datum": ("C", 22), "Anzahl": ("E", 22), "Preis/Einh.": ("G", 22)}
+        firstrows_hourdata = {"Datum": ("B", 22), "Leistungsbez": ("D", 22), "Preis/Einh.": ("G", 22),"Preis/Einh.": ("G", 22),"Sum":("I", 22)}
 
         i = 0
         for row, session in namehourdata.iterrows():
             invoice_sheet[f"{firstrows_hourdata['Datum'][0]}{firstrows_hourdata['Datum'][1] + i}"] = session["Datum"]
-            invoice_sheet[f"{firstrows_hourdata['Anzahl'][0]}{firstrows_hourdata['Anzahl'][1] + i}"] = session[
-                                                                                                           "Minuten"] / 60
-            invoice_sheet[f"{firstrows_hourdata['Preis/Einh.'][0]}{firstrows_hourdata['Preis/Einh.'][1] + i}"] = \
-            clientdata["Stundensatz"]
+            invoice_sheet[f"{firstrows_hourdata['Datum'][0]}{firstrows_hourdata['Datum'][1] + i}"].number_format = 'DD.MM.YYYY'
+            invoice_sheet[f"{firstrows_hourdata['Leistungsbez'][0]}{firstrows_hourdata['Leistungsbez'][1] + i}"] = f"{leistung_text} {str(round(session['Minuten'] / 60,2)).replace('.',',')} h"
+            invoice_sheet[f"{firstrows_hourdata['Preis/Einh.'][0]}{firstrows_hourdata['Preis/Einh.'][1] + i}"] = clientdata["Stundensatz"]
+            invoice_sheet[f"{firstrows_hourdata['Sum'][0]}{firstrows_hourdata['Sum'][1] + i}"] = round((session['Minuten'] / 60)*clientdata["Stundensatz"],2)
+
             i += 1
 
     # now ask to save
