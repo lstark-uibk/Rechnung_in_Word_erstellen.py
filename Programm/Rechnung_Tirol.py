@@ -179,8 +179,8 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
                                "Geb.":("B",firstrowclients),
                                "Gültige Genehmigung Land Tirol ab":("C",firstrowclients),
                                "Anzahl Stunden":("D",firstrowclients),
-                               "Anzahl Hausbesuche":("F",firstrowclients)}
-            otherlocs = {"Ort, Datum":"G14","Rechnungsnummer":"G15"}
+                               "Anzahl Hausbesuche":("D",firstrowclients+1)}
+            otherlocs = {"Ort, Datum":"F15","Rechnungsnummer":"F16"}
 
             kostenstruktur = { "Anzahl Stunden": invoice_tirol_sheet["E21"].value, #anzahl sollte eigentlich Hier Kosten heissen
                               "Anzahl Hausbesuche":invoice_tirol_sheet["F22"].value,
@@ -212,6 +212,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
                     if (key == "Anzahl Hausbesuche") or (key == "Anzahl Stunden"):
                         value = selected_clientdata[clientindex][key].gui_widget.get()
                         if value:
+                            value = value.replace(",",".")
                             value = float(value)
                             costsdf.loc[clientindex - 1,key] = kostenstruktur[key]*value
                         invoice_tirol_sheet[location] = value
@@ -263,9 +264,10 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
                                                   datetime.date.today().strftime('%d_%m_%Y'))
         outputfile_path = os.path.join(outputdir_path, filename)
         print(f"Now i can create the outputdata filepaths:   \n{archive_which_invoices_path}\n{outputfile_path}")
-
-        print(f"Speichern der Rechnungn in {outputfile_path}")
-        invoice_tirol.save(outputfile_path)
+        save_docs = True
+        if save_docs:
+            print(f"Speichern der Rechnungn in {outputfile_path}")
+            invoice_tirol.save(outputfile_path)
         print(f"Speichern des Kassabuchs in {archive_which_invoices_path}")
         try_saving = True
         while try_saving:

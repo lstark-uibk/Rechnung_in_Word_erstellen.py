@@ -115,7 +115,7 @@ def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_patte
 
 
         result = ask_right_invoicenumber(f"Die letzte Rechnungsnummer war {last_inv_numb_str_sugg}. \nSomit wäre die nächste Rechnungsnummer {this_inv_numb_str_sugg}.")
-
+        print("Result:", result)
         if result:
 
             thisinvoicenumber = this_inv_numb_str_sugg
@@ -139,7 +139,7 @@ def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_patte
                 root.withdraw()
                 # shows a dialogue with a string input field
                 thisinvoicenumber = tk.simpledialog.askstring('Rechnungsnummer',
-                                                           "Die letze eingetragen Rechnungsnummer hatte nicht das richtige Format. \nGib sie in dem Format ein wie 2024-001 wobei die erste Nummer mit dem Jahr der Rechnung ersetzt wird und die zweite mit der Rechnungsnummer:",
+                                                           "Die letze eingetragen Rechnungsnummer hatte nicht das richtige Format. \nGib sie in dem Format ein wie 20241001 wobei die erste Nummer mit dem Jahr der Rechnung ersetzt wird und die zweite mit der Rechnungsnummer:",
                                                            parent=root)
                 root.destroy()
     return thisinvoicenumber
@@ -284,6 +284,8 @@ def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoic
     for col, value in zip(range(1, len(inputdata) + 1), inputdata):
         archive_which_invoices.cell(row=last_row_of_data, column=col, value=value)
         archive_which_invoices.cell(last_row_of_data,5).number_format = '€* #,##0.00'
+        archive_which_invoices.cell(last_row_of_data,7).number_format = '€* #,##0.00'
+
         archive_which_invoices.cell(last_row_of_data,2).number_format = 'DD.MM.YYYY'
 
     cell_sum_invoiced = archive_which_invoices.cell(sum_row, 5)
@@ -293,6 +295,18 @@ def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoic
     cell_sum_invoiced.value = f"=SUM(E2:E{last_row_of_data})"
     cell_sum_paid.value = f"=SUM(G2:G{last_row_of_data})"
     cell_diff_inv_paid.value = f"=E{sum_row}-G{sum_row}"
+
+    # sort the entries to invoice number
+
+    rows = list(archive_which_invoices.iter_rows(values_only = True))
+    header, data = rows[0], rows[1:last_row_of_data]
+    print("---------------------\n Data", data)
+    # sort to the first column
+    data.sort(key = lambda x: int(x[0]))
+    # overwrite the rows
+    for row_idx, row_data in enumerate(data,start=2): # start at two to skip the header
+        for col_idx, value in enumerate(row_data, start=1):
+            archive_which_invoices.cell(row= row_idx, column=col_idx, value= value)
 
 
 
@@ -378,6 +392,7 @@ def show_matrix_window(matrix, frame, head = ("","")):
     calculate_row_height(treeview)
 
 def ask_to_save(data_list):
+
     root = tk.Tk()
     root.title("Überprüfung")
     root.geometry("1000x600+50+30")
@@ -397,8 +412,12 @@ def ask_to_save(data_list):
     datalist = show_matrix_window(data_list_without_hours, left_frame, head = ("","Wert"))
     datalist.pack(fill="x",padx=0,pady=0)
     Label(right_frame, text="Stundendaten").pack()
+
     hourdata =[x for x in data_list if "Stundeninfo" in x[0]][0][1]
+    hourdata  =hourdata.sort_values(by="Datum", ascending= False)
+
     hourlist = show_matrix_window(list(hourdata.values),right_frame,head=tuple(hourdata.columns))
+
     hourlist.pack(fill="x",padx=0,pady=0)
 
     Label(root, text="Soll ich nun einen Rechnung mit diesen Daten erstellen?").pack()
@@ -442,7 +461,7 @@ def ask_right_invoicenumber(question):
         root.destroy()
     # Pack widgets side by side inside the last row frame
     tk.Button(yes_no_frame, text="OK",command=button_press_y).pack(side="left", padx=10)
-    tk.Button(yes_no_frame, text="Ändern",command=button_press_y).pack(side="left", padx=10)
+    tk.Button(yes_no_frame, text="Ändern",command=button_press_n).pack(side="left", padx=10)
     root.mainloop()
     print("proceed")
     print("Window closed, proceeding with the program.")
@@ -475,7 +494,9 @@ def get_date(hourdata,lastdate):
     cal2.pack(fill="both", expand=True)
 
     tk.Button(left_frame, text="ok",height=2, width=20, font="Arial 14", command=root.destroy).pack(pady=10)
-    data_list = hourdata.values.tolist()
+    data_list = hourdata.copy()
+    data_list  =data_list.sort_values(by="Datum", ascending= False)
+    data_list =   data_list.values.tolist()
     print(lastdate)
     if lastdate:
         Title = tk.Label(right_frame, text=f"Die letze Rechnung für diese Person wurde am {lastdate} erstellt").pack(pady=10)
