@@ -51,11 +51,24 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
             print(f"no last invoice times in year {yearcheck}")
 
     #select with a calendar
-    invoice_start_date, invoice_end_date = get_date(namehourdata,invoicetime_last)
-    invoice_start_date = pd.to_datetime(invoice_start_date)
-    invoice_end_date = pd.to_datetime(invoice_end_date)
-    print("Ich nehme alle Termine von " + clientname + " ab: " + invoice_start_date.strftime("%d.%m.%Y") + " bis zum " + invoice_end_date.strftime("%d.%m.%Y") )
-    namehourdata = namehourdata[(namehourdata.Datum >= invoice_start_date)&(namehourdata.Datum <= invoice_end_date)]   #delete everything brfore lastinvoicegroup
+    loop = True
+    while loop:
+        invoice_start_date, invoice_end_date = get_date(namehourdata,invoicetime_last)
+        invoice_start_date = pd.to_datetime(invoice_start_date)
+        invoice_end_date = pd.to_datetime(invoice_end_date)
+        print("Ich nehme alle Termine von " + clientname + " ab: " + invoice_start_date.strftime("%d.%m.%Y") + " bis zum " + invoice_end_date.strftime("%d.%m.%Y") )
+        namehourdata = namehourdata[(namehourdata.Datum >= invoice_start_date)&(namehourdata.Datum <= invoice_end_date)]   #delete everything brfore lastinvoicegroup
+        namehourdata = namehourdata.sort_values(by="Datum")
+
+        if namehourdata.shape[0] > 10:
+            print("too many entries")
+
+            def too_many_entries():
+                # Display an alert message box with an "Okay" button
+                tk.messagebox.showinfo("Fehler",
+                                       f"Es sind zu viele daten ausgewählt: {namehourdata.shape[0]}")
+            too_many_entries()
+        else:loop = False
 
     # now fix the year of which the invoice is made
     year_of_invoice = invoice_end_date.year
@@ -158,39 +171,53 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
     if user == "b":
         invoice = openpyxl.load_workbook(template_path)
         invoice_sheet = invoice ['Rechnung']
-        excelsheet_locs = {"Name": ("B", 10),
-                           "Adresse": ("B", 12),
-                           "Stadt": ("B", 13),
-                           "Heute": ("J", 14),
-                           "Rechnungsnummer": ("J", 15),
-                           "Versicherungsnummer": ("J", 17)}
-        usevalues = ["Name", "Adresse", "Stadt", "Heute", "Rechnungsnummer", "Versicherungsnummer"]
+
+        excelsheet_locs = {"Name": ("C", 10),
+                           "Adresse": ("C", 12),
+                           "Stadt": ("C", 13),
+                           "Heute": ("I", 14),
+                           "Rechnungsnummer": ("I", 15),
+                           "Versicherungsnummer": ("I", 17)}
+        usevalues = ["Name", "Adresse", "Stadt", "Heute", "Rechnungsnummer"]
+
         for value in usevalues:
             location = f"{excelsheet_locs[value][0]}{excelsheet_locs[value][1]}"
             invoice_sheet[location] = f"{clientdata[value]}"
 
-        firstrows_hourdata = {"Datum": ("C", 22), "Anzahl": ("E", 22), "Preis/Einh.": ("G", 22)}
+
+        leistung_text = "Logopädie"
+        if "Selbstbehalt" in clientdata.keys():
+            if clientdata["Selbstbehalt"] == "ja":
+                leistung_text = "Logopädie Selbstbehalt"
+
+        firstrows_hourdata = {"Datum": ("B", 22), "Leistungsbez": ("D", 22), "Preis/Einh.": ("G", 22),"Preis/Einh.": ("G", 22),"Sum":("I", 22)}
+
 
         i = 0
         for row, session in namehourdata.iterrows():
             invoice_sheet[f"{firstrows_hourdata['Datum'][0]}{firstrows_hourdata['Datum'][1] + i}"] = session["Datum"]
-            invoice_sheet[f"{firstrows_hourdata['Anzahl'][0]}{firstrows_hourdata['Anzahl'][1] + i}"] = session[
-                                                                                                           "Minuten"] / 60
-            invoice_sheet[f"{firstrows_hourdata['Preis/Einh.'][0]}{firstrows_hourdata['Preis/Einh.'][1] + i}"] = \
-            clientdata["Stundensatz"]
+
+            invoice_sheet[f"{firstrows_hourdata['Datum'][0]}{firstrows_hourdata['Datum'][1] + i}"].number_format = 'DD.MM.YYYY'
+            invoice_sheet[f"{firstrows_hourdata['Leistungsbez'][0]}{firstrows_hourdata['Leistungsbez'][1] + i}"] = f"{leistung_text} {str(round(session['Minuten'])).replace('.',',')} min"
+            invoice_sheet[f"{firstrows_hourdata['Preis/Einh.'][0]}{firstrows_hourdata['Preis/Einh.'][1] + i}"] = float(clientdata["Stundensatz"])
+            invoice_sheet[f"{firstrows_hourdata['Sum'][0]}{firstrows_hourdata['Sum'][1] + i}"] = round((session['Minuten'] / 60)*float(clientdata["Stundensatz"]),2)
             i += 1
 
     # now ask to save
     save_or_not = ask_to_save(clientdata_list)
+
+
+
     print(f"save or not {save_or_not}")
     if save_or_not:
-
-        if user =="r":
-            print(f"Save word file to {outputfile_path}")
-            doc.save(outputfile_path)
-        if user == "b":
-            invoice.save(outputfile_path)
-            print(f"Save excel file to {outputfile_path}")
+        safe_docs = True
+        if safe_docs:
+            if user =="r":
+                print(f"Save word file to {outputfile_path}")
+                doc.save(outputfile_path)
+            if user == "b":
+                invoice.save(outputfile_path)
+                print(f"Save excel file to {outputfile_path}")
 
         #write what I did in the archive
         try_saving = True
