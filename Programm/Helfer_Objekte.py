@@ -1,4 +1,6 @@
 from tkinter import *
+
+from lxml.etree import clear_error_log
 from tkcalendar import Calendar, DateEntry
 from functools import partial
 import pandas as pd
@@ -82,6 +84,7 @@ def check_invoice_archive(year_of_invoice,outputdir_path,archive_which_invoices_
     lastinvoice_num = 0
     for index, entry in invoicenumbers.iloc[::-1].items():
         if not pd.isnull(entry):
+            entry = str(entry)
             if re.match(invoicenumber_pattern, entry):
                 lastinvoice_year_num = re.match(invoicenumber_pattern, entry)[0]
                 lastinvoice_year = int(re.match(invoicenumber_pattern, entry)[1])
@@ -112,7 +115,7 @@ def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_patte
 
 
         result = ask_right_invoicenumber(f"Die letzte Rechnungsnummer war {last_inv_numb_str_sugg}. \nSomit wäre die nächste Rechnungsnummer {this_inv_numb_str_sugg}.")
-
+        print("Result:", result)
         if result:
 
             thisinvoicenumber = this_inv_numb_str_sugg
@@ -136,7 +139,7 @@ def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_patte
                 root.withdraw()
                 # shows a dialogue with a string input field
                 thisinvoicenumber = tk.simpledialog.askstring('Rechnungsnummer',
-                                                           "Die letze eingetragen Rechnungsnummer hatte nicht das richtige Format. \nGib sie in dem Format ein wie 2024-001 wobei die erste Nummer mit dem Jahr der Rechnung ersetzt wird und die zweite mit der Rechnungsnummer:",
+                                                           "Die letze eingetragen Rechnungsnummer hatte nicht das richtige Format. \nGib sie in dem Format ein wie 20241001 wobei die erste Nummer mit dem Jahr der Rechnung ersetzt wird und die zweite mit der Rechnungsnummer:",
                                                            parent=root)
                 root.destroy()
     return thisinvoicenumber
@@ -147,7 +150,10 @@ def validate_input_int(char, input_value):
         return True
     try:
         # Try to convert the input value to an integer
-        int(input_value)
+        input_value = input_value.replace('.','')
+        input_value = input_value.replace(',','.')
+        print(input_value)
+        float(input_value)
         return True
     except ValueError:
         return False
@@ -247,43 +253,60 @@ def select_client(options):
 
 
 def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoice_end_date,summe,archive_which_invoices_path):
+    invoicenumber = int(invoicenumber)
     ws_archive_which_invoices = openpyxl.load_workbook(archive_which_invoices_path)
     archive_which_invoices = ws_archive_which_invoices.worksheets[0]
-    invoiceduration = invoice_start_date.strftime("%d.%m.%Y") + " - " + invoice_end_date.strftime("%d.%m.%Y")
+    invoiceduration = invoice_start_date.strftime("%d.%m.%Y")
+    if invoice_end_date:
+        invoiceduration += f" - {invoice_end_date.strftime('%d.%m.%Y')}"
     #datetoday = datetime.datetime.strptime(datetoday, "%d.%m.%Y")
     inputdata = [invoicenumber,datetoday, clientname, invoiceduration, summe]
 
-    last_row = archive_which_invoices.max_row
-    last_row_data = 0 #last row of invoice data (not sums etc)
-    sumrow = True
-    i = last_row
-    while True:
-        if sumrow:
-            if archive_which_invoices.cell(i, 1).value is not None: # check whether there is a sum row
-                i -=1
-            else:
-                sumrow = False
+    last_row_of_data = 0
+    # so first row from bottom which is empty designates finish of data
+    for row in archive_which_invoices:
+        if any(cell.value is not None for cell in row):
+            last_row_of_data += 1
         else:
-            if archive_which_invoices.cell(i, 1).value is None:  # check whether there is an empty row over a sum row
-                i -= 1
-            else:
-                print(f"last datarow = {i}, {[cell.value for cell in archive_which_invoices[i]]}")
-                last_row_data = i
-                break
-    archive_which_invoices.insert_rows(last_row_data+1)
+            break
+    print(f"last row of data = {last_row_of_data}")
+    # first row with Summe: designates Sum row
+    sum_row = archive_which_invoices.max_row
+    for index,row in enumerate(archive_which_invoices):
+        if row[0].value == "Summe:":
+            sum_row = index + 1
+    print(f"sum_row = {sum_row}")
+
+    archive_which_invoices.insert_rows(last_row_of_data+1)
+    sum_row += 1
+    last_row_of_data += 1
     last_row = archive_which_invoices.max_row
     for col, value in zip(range(1, len(inputdata) + 1), inputdata):
-        archive_which_invoices.cell(row=last_row_data+1, column=col, value=value)
-        archive_which_invoices.cell(last_row_data+1,5).number_format = '€* #,##0.00'
-        archive_which_invoices.cell(last_row_data+1,2).number_format = 'DD.MM.YYYY'
+        archive_which_invoices.cell(row=last_row_of_data, column=col, value=value)
+        archive_which_invoices.cell(last_row_of_data,5).number_format = '€* #,##0.00'
+        archive_which_invoices.cell(last_row_of_data,7).number_format = '€* #,##0.00'
 
-    cell_sum_invoiced = archive_which_invoices.cell(last_row-1, 5)
-    cell_sum_paid = archive_which_invoices.cell(last_row-1, 7)
-    cell_diff_inv_paid = archive_which_invoices.cell(last_row, 7)
+        archive_which_invoices.cell(last_row_of_data,2).number_format = 'DD.MM.YYYY'
 
-    cell_sum_invoiced.value = f"=SUM(E2:E{last_row-2})"
-    cell_sum_paid.value = f"=SUM(G2:G{last_row-2})"
-    cell_diff_inv_paid.value = f"=E{last_row-1}-G{last_row-1}"
+    cell_sum_invoiced = archive_which_invoices.cell(sum_row, 5)
+    cell_sum_paid = archive_which_invoices.cell(sum_row, 7)
+    cell_diff_inv_paid = archive_which_invoices.cell(sum_row+1, 7)
+
+    cell_sum_invoiced.value = f"=SUM(E2:E{last_row_of_data})"
+    cell_sum_paid.value = f"=SUM(G2:G{last_row_of_data})"
+    cell_diff_inv_paid.value = f"=E{sum_row}-G{sum_row}"
+
+    # sort the entries to invoice number
+
+    rows = list(archive_which_invoices.iter_rows(values_only = True))
+    header, data = rows[0], rows[1:last_row_of_data]
+    print("---------------------\n Data", data)
+    # sort to the first column
+    data.sort(key = lambda x: int(x[0]))
+    # overwrite the rows
+    for row_idx, row_data in enumerate(data,start=2): # start at two to skip the header
+        for col_idx, value in enumerate(row_data, start=1):
+            archive_which_invoices.cell(row= row_idx, column=col_idx, value= value)
 
 
 
@@ -369,6 +392,7 @@ def show_matrix_window(matrix, frame, head = ("","")):
     calculate_row_height(treeview)
 
 def ask_to_save(data_list):
+
     root = tk.Tk()
     root.title("Überprüfung")
     root.geometry("1000x600+50+30")
@@ -388,8 +412,12 @@ def ask_to_save(data_list):
     datalist = show_matrix_window(data_list_without_hours, left_frame, head = ("","Wert"))
     datalist.pack(fill="x",padx=0,pady=0)
     Label(right_frame, text="Stundendaten").pack()
+
     hourdata =[x for x in data_list if "Stundeninfo" in x[0]][0][1]
+    hourdata  =hourdata.sort_values(by="Datum", ascending= False)
+
     hourlist = show_matrix_window(list(hourdata.values),right_frame,head=tuple(hourdata.columns))
+
     hourlist.pack(fill="x",padx=0,pady=0)
 
     Label(root, text="Soll ich nun einen Rechnung mit diesen Daten erstellen?").pack()
@@ -433,7 +461,7 @@ def ask_right_invoicenumber(question):
         root.destroy()
     # Pack widgets side by side inside the last row frame
     tk.Button(yes_no_frame, text="OK",command=button_press_y).pack(side="left", padx=10)
-    tk.Button(yes_no_frame, text="Ändern",command=button_press_y).pack(side="left", padx=10)
+    tk.Button(yes_no_frame, text="Ändern",command=button_press_n).pack(side="left", padx=10)
     root.mainloop()
     print("proceed")
     print("Window closed, proceeding with the program.")
@@ -466,7 +494,9 @@ def get_date(hourdata,lastdate):
     cal2.pack(fill="both", expand=True)
 
     tk.Button(left_frame, text="ok",height=2, width=20, font="Arial 14", command=root.destroy).pack(pady=10)
-    data_list = hourdata.values.tolist()
+    data_list = hourdata.copy()
+    data_list  =data_list.sort_values(by="Datum", ascending= False)
+    data_list =   data_list.values.tolist()
     print(lastdate)
     if lastdate:
         Title = tk.Label(right_frame, text=f"Die letze Rechnung für diese Person wurde am {lastdate} erstellt").pack(pady=10)

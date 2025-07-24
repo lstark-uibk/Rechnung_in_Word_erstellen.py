@@ -7,8 +7,8 @@ from  Neue_Person import make_new_Person
 
 def main():
     parent_dir = os.path.dirname(os.path.realpath(__file__))
-    user = "r"
-    #user = "b"
+    #user = "r"
+    user = "b"
     supparentdir = os.path.dirname(parent_dir)
     supsupparentdir = os.path.dirname(supparentdir)
     if user == "r":
@@ -25,15 +25,19 @@ def main():
     allclientdata_path = os.path.join(supsupparentdir, "Daten/PatientInneninformationen.xlsx")
     outputdir_suppath = supsupparentdir
     #nameoutputdir = ["Rechnungen ", "year"]
-    nameoutputdir = ["year"]
-    nameoutputarchivefile = ["Rechnungen ", "year",".xlsx"]
+    nameoutputdir = ["Rechnungen_","year"]
+    nameoutputarchivefile = ["Kassabuch_", "year",".xlsx"]
+    kassbuchdir = ""
     if user == "r":
         nameinvoicefile = ["RE ", "invoicenumber", "clientname", " " , "date", ".docx"]
+        invoicenumber_pattern = r'(\d{4})-(\d+)'
+        invoicenumber_pattern_names = ["year", "-", "invoicenumber"]
     if user == "b":
-        nameinvoicefile = ["RE ", "invoicenumber", "clientname"," ", "date", ".xlsx"]
+        nameinvoicefile = ["clientname","-","invoicenumber","-", "date", ".xlsx"]
+        invoicenumber_pattern = r'(\d{4})1(\d+)'
+        invoicenumber_pattern_names = ["year","1", "invoicenumber"]
+        kassbuchdir = "/Users/brigittemacbookpro/Brigitte Aron/Logopädie/Buchhaltung_Praxis/Kassabuch"
 
-    invoicenumber_pattern = r'(\d{4})-(\d+)'
-    invoicenumber_pattern_names = ["year","-","invoicenumber"]
     #invoicenumber_pattern_names_T = ["T","year","-","invoicenumber"]
 
 
@@ -47,11 +51,12 @@ def main():
         if answer == "Tirol":
             print("Tirol")
             make_invoice_tirol(allclientdata_path,template_tirol_path,excel_template_path,outputdir_suppath,nameoutputdir,nameoutputarchivefile,
-                               invoicenumber_pattern, invoicenumber_pattern_names, user = user)
+                               invoicenumber_pattern, invoicenumber_pattern_names, nameinvoicefile,kassbuchdir,user = user)
         elif answer == "Praxis":
             print("Praxis")
             make_invoice_praxis(allhourdata_path, allclientdata_path, excel_template_path, template_praxis_path,outputdir_suppath,
-                                nameoutputdir,nameoutputarchivefile, invoicenumber_pattern, invoicenumber_pattern_names,nameinvoicefile,user = user)
+                                nameoutputdir,nameoutputarchivefile, invoicenumber_pattern,
+                                invoicenumber_pattern_names,nameinvoicefile,kassbuchdir,user = user)
         elif answer == "Neu":
             print("Neu")
             make_new_Person(allclientdata_path)
