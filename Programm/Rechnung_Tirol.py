@@ -14,11 +14,25 @@ class Grid_Entry():
         self.value = value
 
 
-def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path,outputdir_suppath,nameoutputdir,nameoutputarchivefile,
-                       invoicenumber_pattern, invoicenumber_pattern_names,nameinvoicefile, kassabuchdir,user = "r"):
-    if user == "r":
+def make_invoice_tirol(config,method):
+    print(f"Run method: {method} with user: {config['username']}")
+    clientdata_path = config["data"]["clientdata"]
+    servicedata_path =  config["data"]["servicedata"]
+    template_path = config["outputmethods"][method]["template_path"]
+    cashbookdir = config["cashbook"]["cashbookbuchdir"]
+    cashbooktemplate_path = config["cashbook"]["template_path"]
+    invoiceoutputdir_namestructure = config["output"]["directorynamestructure"]
+    invoiceoutputdir_suppath = config["output"]["suppath"]
+    invoice_name = config["outputmethods"][method]["invoice_name"]
+    invoicenumber_pattern_names = config["invoicenumber"]["invoicenumber_pattern_names"]
+    invoicenumber_pattern = config["outputmethods"][method]["invoicenumber_pattern"]
+
+
+
+
+    if config["username"] == "r":
         amount_of_persons_LandTirol = 3
-    if user == "b":
+    if config["username"] == "b":
         amount_of_persons_LandTirol = 5
 
 
@@ -30,7 +44,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
 
 
 
-    allclientdata = pd.read_excel(allclientdata_path, index_col=0, header=None, sheet_name=None)
+    allclientdata = pd.read_excel(clientdata_path, index_col=0, header=None, sheet_name=None)
     print(allclientdata)
     # select which client
     allclientsnames = list(allclientdata.keys())
@@ -45,12 +59,12 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
 
     window.title("Wähle die Personen und gib die Stunden ein")
     window.resizable(width=False, height=False)
-    if user == "r":
+    if config["username"] == "r":
         showvalues = ["Name", "Geb.", "Gültige Genehmigung Land Tirol ab", "Anzahl Einzelstunden", "Anzahl Gruppenstunden","Anzahl Hausbesuche"]
         columns = [0,1,2,4,7,9]
         minuteslist = ["30 min", "45 min", "60 min"]
 
-    if user == "b":
+    if config["username"] == "b":
         showvalues = ["Name", "Geb.", "Gültige Genehmigung Land Tirol ab", "Anzahl Stunden", "Anzahl Hausbesuche"]
         columns = [0,1,2,3,4]
         minuteslist = ["60 min"]
@@ -64,11 +78,11 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
     emptyclientdata[:] = ""
     emptyclientdata = emptyclientdata.to_dict()
     selected_clientdata = {}
-    if user == "r":
+    if config["username"] == "r":
         selected_clientdata = {1:emptyclientdata.copy(),
                                2:emptyclientdata.copy(),
                                3:emptyclientdata.copy()}
-    if user == "b":
+    if config["username"] == "b":
         selected_clientdata = {1:emptyclientdata.copy(),
                                2:emptyclientdata.copy(),
                                3:emptyclientdata.copy(),
@@ -116,7 +130,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
         selected_clientdata[clientindex]["Geb."] = Grid_Entry(tk.Label(master=window, text=""), "")
         vcmd = window.register(validate_input_int)
         selected_clientdata[clientindex]["Gültige Genehmigung Land Tirol ab"] = Grid_Entry(tk.Label(master=window, text=""), "")
-        if user == "r":
+        if config["username"] == "r":
             selected_clientdata[clientindex]["Anzahl Einzelstunden"] =  {"30 min": Grid_Entry(tk.Entry(master=window, width=10, validate="key", validatecommand=(vcmd, '%S', '%P')),0),
                                                                          "45 min": Grid_Entry(tk.Entry(master=window, width=10, validate="key", validatecommand=(vcmd, '%S', '%P')),0),
                                                                          "60 min": Grid_Entry(tk.Entry(master=window, width=10, validate="key", validatecommand=(vcmd, '%S', '%P')),0),
@@ -126,7 +140,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
                                                                          "60 min": Grid_Entry(tk.Entry(master=window, width=10, validate="key", validatecommand=(vcmd, '%S', '%P')),0)
 
                                    }
-        if user == "b":
+        if config["username"] == "b":
             selected_clientdata[clientindex]["Anzahl Stunden"] = Grid_Entry(tk.Entry(master=window, width=10, validate="key", validatecommand=(vcmd, '%S', '%P')),0)
         selected_clientdata[clientindex]["Anzahl Hausbesuche"] = Grid_Entry(tk.Entry(master=window, text="", validate="key", validatecommand=(vcmd, '%S', '%P')), "")
         column = 0
@@ -144,10 +158,10 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
 
     def on_ok_buttonpress():
         print("Erstelle Rechnung")
-        print(f"open excel vorlage tirol {invoice_tirol_path}")
-        invoice_tirol = openpyxl.load_workbook(invoice_tirol_path)
+        print(f"open excel vorlage tirol {template_path}")
+        invoice_tirol = openpyxl.load_workbook(template_path)
         invoice_tirol_sheet = invoice_tirol["Rechnung Einrichtung"]
-        if user == "r":
+        if config["username"] == "r":
             kostenstruktur = {"Anzahl Einzelstunden": {},
                               "Anzahl Gruppenstunden": {},
                               "Anzahl Hausbesuche":invoice_tirol_sheet["H25"].value,
@@ -172,7 +186,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
             col_costdf = 3
 
 
-        if user == "b":
+        if config["username"] == "b":
             firstrowclients = 21
             cellsbetweenclients = 5
             excelsheet_locs = {"Name":("A",firstrowclients),
@@ -226,9 +240,9 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
                 invoice_tirol_sheet[otherlocs["Ort, Datum"]]=f"{datetime.datetime.today().strftime('%d.%m.%Y')}"
 
         # calculate total sum
-        if user == "r":
+        if config["username"] == "r":
             costsdf["Ausgleichzulage"] = (costsdf["Anzahl Einzelstunden"]+costsdf["Anzahl Gruppenstunden"])*kostenstruktur["Ausgleichzulage"]
-        if user == "b":
+        if config["username"] == "b":
             costsdf["Ausgleichzulage"] = (costsdf["Anzahl Stunden"] ) * kostenstruktur["Ausgleichzulage"]
         costsdf["Summen"] = costsdf.sum(axis=1)
         totalsum  = costsdf["Summen"].sum(axis = 0)
@@ -241,16 +255,16 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
 
         #get invoice number
         year_of_invoice = datetime.datetime.today().year
-        outputdir = stringsandyear_topath(nameoutputdir, year_of_invoice)
-        outputdir_path = os.path.join(outputdir_suppath, outputdir)
-        archive_which_invoices_name = stringsandyear_topath(nameoutputarchivefile, year_of_invoice)
-        if user == "b":
-            archive_which_invoices_path = os.path.join(kassabuchdir, archive_which_invoices_name)
-        if user == "r":
+        outputdir = stringsandyear_topath(invoiceoutputdir_namestructure, year_of_invoice)
+        outputdir_path = os.path.join(invoiceoutputdir_suppath, outputdir)
+        archive_which_invoices_name = stringsandyear_topath(cashbookdir, year_of_invoice)
+        if config["username"] == "b":
+            archive_which_invoices_path = os.path.join(cashbookdir, archive_which_invoices_name)
+        if config["username"] == "r":
             archive_which_invoices_path = os.path.join(outputdir_path, archive_which_invoices_name)
 
         print(f"Year to link this invoice to: {year_of_invoice}")
-        lastinvoice_num = check_invoice_archive(year_of_invoice,outputdir_path,archive_which_invoices_path,excel_template_path,invoicenumber_pattern= invoicenumber_pattern)
+        lastinvoice_num = check_invoice_archive(year_of_invoice,outputdir_path,archive_which_invoices_path,cashbooktemplate_path,invoicenumber_pattern= invoicenumber_pattern)
         print(f"lastinvoice_num: {lastinvoice_num}")
         thisinvoicenumber = question_next_invoice_number(year_of_invoice,lastinvoice_num,invoicenumber_pattern,invoicenumber_pattern_names)
         print(f"thisinvoicenumber{thisinvoicenumber}")
@@ -260,7 +274,7 @@ def make_invoice_tirol(allclientdata_path,invoice_tirol_path,excel_template_path
         namesstring = ""
         for name in names_this_invoice:
             namesstring+= f"{name} "
-        filename = stringsandinvoicenumber_topath(nameinvoicefile, thisinvoicenumber, "Land Tirol",
+        filename = stringsandinvoicenumber_topath(invoice_name, thisinvoicenumber, "Land Tirol",
                                                   datetime.date.today().strftime('%d_%m_%Y'))
         outputfile_path = os.path.join(outputdir_path, filename)
         print(f"Now i can create the outputdata filepaths:   \n{archive_which_invoices_path}\n{outputfile_path}")

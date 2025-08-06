@@ -7,8 +7,9 @@ import openpyxl
 import xlwings as xw
 
 
-def make_new_Person(allclientdata_path):
-
+def make_new_Person(conf):
+    conf_new = conf["newperson"]
+    allclientdata_path = conf["data"]["clientdata"]
     allclientdata = pd.read_excel(allclientdata_path, index_col=0, header=None, sheet_name=None)
 
     datatoinquire = list(allclientdata["Vorlage"].index)
@@ -23,8 +24,9 @@ def make_new_Person(allclientdata_path):
     # position the inquiries in a nice table
     for rownumber, (label, entry) in enumerate(zip(labels, entries)):
         label.grid(column=0, row=rownumber)
-        if rownumber != 1 and rownumber != 2 and  rownumber != 16:
+        if rownumber != conf_new["child_yn_idx"] and rownumber != conf_new["sex_idx"]:
             entry.grid(column=1, row=rownumber)
+
 
     # make the dropdowns
     sexoptions = ["w", "m"]
@@ -41,10 +43,10 @@ def make_new_Person(allclientdata_path):
     sexoptiondropdown = tk.OptionMenu(root, sex, *sexoptions)
     sexoptiondropdown.grid(column=1, row=2)
 
-    selbstbehalt = tk.StringVar(root)
-    selbstbehalt.set(selbstbehaltoptions[1])
-    selbstbehaltdropdown = tk.OptionMenu(root, selbstbehalt, *selbstbehaltoptions)
-    selbstbehaltdropdown.grid(column=1, row=16)
+    # selbstbehalt = tk.StringVar(root)
+    # selbstbehalt.set(selbstbehaltoptions[1])
+    # selbstbehaltdropdown = tk.OptionMenu(root, selbstbehalt, *selbstbehaltoptions)
+    # selbstbehaltdropdown.grid(column=1, row=16)
 
 
     userinputs = [""]*len(entries)
@@ -60,7 +62,9 @@ def make_new_Person(allclientdata_path):
     def validate_mandatory(x):
         if x:
             return ("",True)
-        else: return ("Das Namensfeld darf nicht leer sein",False)
+        else:
+            print("Das Namensfeld darf nicht leer sein",False)
+            return ("Das Namensfeld darf nicht leer sein",False)
 
     def submit():
         # collect the values
@@ -69,9 +73,9 @@ def make_new_Person(allclientdata_path):
             userinputs[i] = entry.get()
             entry.config(bg="white")
 
-        userinputs[1] = child.get()
-        userinputs[2] = sex.get()
-        userinputs[16] = selbstbehalt.get()
+        userinputs[conf_new["child_yn_idx"]] = child.get()
+        userinputs[conf_new["sex_idx"]] = sex.get()
+        #userinputs[16] = selbstbehalt.get()
         print(userinputs)
         validated_wrong = []
         errormessages = []
@@ -82,7 +86,7 @@ def make_new_Person(allclientdata_path):
             validated_wrong.append(0)
             errormessages.append(errormessage)
         #validate datetime:
-        dateentries = [3,12,17]
+        dateentries = conf_new["dateenties"]
         for i in dateentries:
             errormessage, validation = validate_date(userinputs[i])
             if not validation:
@@ -130,9 +134,11 @@ def make_new_Person(allclientdata_path):
             else:
                 print("This system is not Linux.")
                 os.startfile(allclientdata_path)
+        else:
+            Errormessages.config(text=errormessages)
     Errormessages = tk.Label(root, textvariable="")
-    Errormessages.grid(column=1, row=len(datatoinquire) + 2)
-    tk.Button(root, text="Speichern", command=submit).grid(column=1, row=len(datatoinquire) + 1)
+    Errormessages.grid(column=1, row=len(datatoinquire) + 1)
+    tk.Button(root, text="Speichern", command=submit).grid(column=1, row=len(datatoinquire) + 2)
 
     root.mainloop()
 # parse datetime inputs

@@ -9,21 +9,33 @@ import os
 import numpy as np
 import datetime
 import pprint
-from Helfer_Objekte import (check_invoice_archive,question_next_invoice_number, select_client, get_date, save_to_archive, ask_to_save,
+from Helfer_Objekte import (check_invoice_archive,question_next_invoice_number, select_client, get_items, save_to_archive, ask_to_save,
                                      stringsandyear_topath, stringsandinvoicenumber_topath)
 import tkinter as tk
 
 
-def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,template_path,outputdir_suppath,
-                        nameouptutdir,nameoutputarchivefile, invoicenumber_pattern,
-                        invoicenumber_pattern_names, nameinvoicefile,kassabuchdir,user = "r"):
+def make_invoice_praxis(config,method):
     ### parameters:
-
-
+    print("------------------------------------------------------------")
+    print(f"Run method: {method} with user: {config['username']}")
+    clientdata_path = config["data"]["clientdata"]
+    servicedata_path =  config["data"]["servicedata"]
+    template_path = config["outputmethods"][method]["template_path"]
+    cashbookdir = config["cashbook"]["cashbookbuchdir"]
+    cashbookfilenamestructure = config["cashbook"]["cashbookfilenamestructure"]
+    cashbooktemplate_path = config["cashbook"]["template_path"]
+    invoiceoutputdir_namestructure = config["output"]["directorynamestructure"]
+    invoiceoutputdir_suppath = config["output"]["suppath"]
+    invoice_name = config["outputmethods"][method]["invoice_name"]
+    invoicenumber_pattern_names = config["invoicenumber"]["invoicenumber_pattern_names"]
+    invoicenumber_pattern = config["invoicenumber"]["invoicenumber_pattern"]
+    doctype = config["outputmethods"][method]["doctype"]
 
     #readin
-    allhourdata = pd.read_excel(allhourdata_path, parse_dates=[0])
-    allclientdata = pd.read_excel(allclientdata_path, index_col=0, header=None, sheet_name=None)
+    allhourdata = pd.read_excel(servicedata_path, parse_dates=[0],sheet_name="Stundendaten")
+    services = pd.read_excel(servicedata_path, sheet_name = "Leistungen")
+
+    allclientdata = pd.read_excel(clientdata_path, index_col=0, header=None, sheet_name=None)
 
 
     #select which client
@@ -32,25 +44,26 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
 
     allclientsnames = [allclientdata[x][1]["Name"] for x in allclientsnames_sheetnames]
 
-    print(allclientsnames)
+    print("All client names are:")
+    pprint.pprint(allclientsnames)
     allclientsnames.sort()
-    clientname = select_client(
-        allclientsnames
-    )
-    print("Ich mache die Rechnung für die Person:")
+    clientname = select_client(   allclientsnames)
+    # clientname = "Martina Test"
+    print("Selected client is:")
     print(clientname)
+    print("------------------------------------------------------------")
+
     namehourdata = allhourdata[allhourdata["Name"] == clientname]
 
     # check whether there was already an invoice for this person in the last 3 years (we want to see it in the calendar)
     invoicetime_last = 0
     for yearback in [2,1,0]:
         yearcheck = datetime.datetime.today().year - yearback
-        directory_to_search = stringsandyear_topath(nameouptutdir,yearcheck)
-        fullpath_to_search = os.path.join(outputdir_suppath,directory_to_search)
+        cashbookfilename = stringsandyear_topath(cashbookfilenamestructure,yearcheck)
+        cashbook_path = os.path.join(cashbookdir,cashbookfilename)
         try:
-            archive_which_invoices_path = os.path.join(fullpath_to_search, f"Rechnungen {yearcheck}.xlsx")
-            print(f"Check {archive_which_invoices_path}")
-            archive =pd.read_excel(archive_which_invoices_path)
+            print(f"Check cashbook in {cashbook_path}")
+            archive =pd.read_excel(cashbook_path)
             invoicetime_last = archive.iloc[:,1][archive.iloc[:,2] == clientname].values[-1]
             print(f"got last invoice time in year {yearcheck}: {invoicetime_last}")
         except:
@@ -59,58 +72,69 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
     #select with a calendar
     loop = True
     while loop:
-        invoice_start_date, invoice_end_date = get_date(namehourdata,invoicetime_last)
-        invoice_start_date = pd.to_datetime(invoice_start_date)
-        invoice_end_date = pd.to_datetime(invoice_end_date)
+        print("------------------------------------------------------------")
+        print("Select the items for invoice")
+        selected_data,invoice_start_date,invoice_end_date = get_items(clientname,namehourdata,services,invoicetime_last, config["outputmethods"][method]["defaultservice"])
+        # selected_data,invoice_start_date,invoice_end_date = namehourdata, namehourdata.Datum.min(),namehourdata.Datum.max()
+
         print("Ich nehme alle Termine von " + clientname + " ab: " + invoice_start_date.strftime("%d.%m.%Y") + " bis zum " + invoice_end_date.strftime("%d.%m.%Y") )
-        namehourdata = namehourdata[(namehourdata.Datum >= invoice_start_date)&(namehourdata.Datum <= invoice_end_date)]   #delete everything brfore lastinvoicegroup
+        print("The data for this person is")
+        pprint.pprint(selected_data)
+        print("------------------------------------------------------------")
+
+        # namehourdata = namehourdata[(namehourdata.Datum >= invoice_start_date)&(namehourdata.Datum <= invoice_end_date)]   #delete everything brfore lastinvoicegroup
+        namehourdata = selected_data
         namehourdata = namehourdata.sort_values(by="Datum")
 
-        if namehourdata.shape[0] > 10:
-            print("too many entries")
-
-            def too_many_entries():
-                # Display an alert message box with an "Okay" button
-                tk.messagebox.showinfo("Fehler",
-                                       f"Es sind zu viele daten ausgewählt: {namehourdata.shape[0]}")
-            too_many_entries()
-        else:loop = False
+        # too many entries not important
+        # if namehourdata.shape[0] > 10:
+        #     print("too many entries")
+        #
+        #     def too_many_entries():
+        #         # Display an alert message box with an "Okay" button
+        #         tk.messagebox.showinfo("Fehler",
+        #                                f"Es sind zu viele daten ausgewählt: {namehourdata.shape[0]}")
+        #     too_many_entries()
+        #else:
+        loop = False
 
     # now fix the year of which the invoice is made
     year_of_invoice = invoice_end_date.year
+    print(f"Year to link this invoice to: {year_of_invoice}")
 
     #now fix the output path and check whether it exists
-    outputdir = stringsandyear_topath(nameouptutdir, year_of_invoice)
-    outputdir_path = os.path.join(outputdir_suppath, outputdir)
+    outputdir = stringsandyear_topath(invoiceoutputdir_namestructure, year_of_invoice)
+    outputdir_path = os.path.join(invoiceoutputdir_suppath, outputdir)
     if not os.path.isdir(outputdir_path):
         os.mkdir(outputdir_path)
     else:
         print(f"We already have a output directory {outputdir_path}")
 
     #now get the invoice archive or make new archive and check for invoice numbers
-    archive_which_invoices_name = stringsandyear_topath(nameoutputarchivefile,year_of_invoice)
-    if user == "b":
-        archive_which_invoices_path = os.path.join(kassabuchdir, archive_which_invoices_name)
-    if user == "r":
+    archive_which_invoices_name = stringsandyear_topath(cashbookfilenamestructure,year_of_invoice)
+    if cashbookdir == "outputdir":
         archive_which_invoices_path = os.path.join(outputdir_path, archive_which_invoices_name)
+    else:
+        archive_which_invoices_path = os.path.join(cashbookdir, archive_which_invoices_name)
 
-    print(f"Year to link this invoice to: {year_of_invoice}")
     lastinvoice_num = check_invoice_archive(year_of_invoice, outputdir_path, archive_which_invoices_path,
-                                            excel_template_path, invoicenumber_pattern= invoicenumber_pattern)
-    print(f"lastinvoice_num: {lastinvoice_num}")
+                                            cashbooktemplate_path, invoicenumber_pattern= invoicenumber_pattern)
+    print("------------------------------------------------------------")
+    print(f"Last invoice number: {lastinvoice_num}")
 
     # check whether invoice number is okay
-    thisinvoicenumber = question_next_invoice_number(year_of_invoice,lastinvoice_num,invoicenumber_pattern,invoicenumber_pattern_names)
+    thisinvoicenumber = question_next_invoice_number(year_of_invoice,lastinvoice_num,invoicenumber_pattern,invoicenumber_pattern_names
+                                                     )
+    print(f"This invoicenumber: {thisinvoicenumber}")
+    print("------------------------------------------------------------")
 
     # since we now have the year and the invoicenumber we set outputfilepath
-    filename = stringsandinvoicenumber_topath(nameinvoicefile,thisinvoicenumber,clientname, datetime.date.today().strftime('%d_%m_%Y'))
+    filename = stringsandinvoicenumber_topath(invoice_name,thisinvoicenumber,clientname, datetime.date.today().strftime('%d_%m_%Y'))
     outputfile_path = os.path.join(outputdir_path, filename)
-    print(f"Now i can create the outputdata filepaths:   \n{archive_which_invoices_path}\n{outputfile_path}")
+    print(f"Now i can create the outputdata filepaths:   \ncassabook: {archive_which_invoices_path}\ninvoice: {outputfile_path}")
 
     # data processing
     clientdata = allclientdata[clientname].to_dict()[1]
-    print("Die Patientendaten sind:")
-    pprint.pprint(clientdata)
 
     #additional data on invoice
     if clientdata["Kind"] == "nein":
@@ -123,42 +147,115 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
         raise SystemExit
 
     clientdata["Rechnungsnummer"] = thisinvoicenumber
+    if pd.isna(clientdata["Versicherungsnummer"]):
+        clientdata["Versicherungsnummer"] = ""
+        clientdata["Versicherungsnummerlabel"] = ""
+    else:
+        clientdata["Versicherungsnummerlabel"] = "Versicherungsnummer"
     clientdata["Heute"] = datetime.date.today().strftime("%d.%m.%Y")
     clientdata["Wordkindtext"] = ""
-    try:
-        if clientdata["Kind"] == "ja":
-            if clientdata["Geschlecht"] == "m":
-                clientfirstname = clientdata["Name"].split()[0]
-                clientdata["Wordkindtext"] = " für Ihren Sohn " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
-            if clientdata["Geschlecht"] == "w":
-                clientfirstname = clientdata["Name"].split()[0]
-                clientdata["Wordkindtext"] = " für Ihre Tochter " + clientfirstname + ", geboren am " + clientdata["Geb."].strftime("%d.%m.%Y") + ","
-    except Exception as e:
-        print("No birthday?")
-        print(e)
+    clientdata["HerrFrau"] = ""
+    clientdata["Behandlungszeitraum"] = f"{invoice_start_date.strftime('%d.%m.%Y')} - {invoice_end_date.strftime('%d.%m.%Y')}"
+    clientdata["Ort"] = config["location"]
+
+    if clientdata["Geschlecht"] == "m":
+        clientdata["HerrFrau"] = "Herr"
+    if clientdata["Geschlecht"] == "w":
+        clientdata["HerrFrau"] = "Frau"
+
+    clientdata["Geburtstag"] = clientdata["Geburtstag"].strftime('%d.%m.%Y')
+    clientdata["Gültige Genehmigung Land Tirol ab"] = clientdata["Gültige Genehmigung Land Tirol ab"].strftime('%d.%m.%Y')
+    clientdata_list = [[key,clientdata[key]] for key in clientdata]
+    addedhourdata = []
+    save_or_not = ask_to_save(clientdata_list, namehourdata, services, addedhourdata)
+    for new_hourdata in addedhourdata:
+        namehourdata = pd.concat([namehourdata,new_hourdata])
+
+    totalamount = 0
+    # now to configure the input table
+    if config["outputmethods"][method]["positionsinvoicetype"] == "all entries":
+        # so here the wordtable should be: internal number,date, servicetext, hours, hourly rate, sum if
+        positionsinvoice = namehourdata
+        amountpersession = (positionsinvoice["Minuten"].astype(float) * positionsinvoice["Stundensatz"].astype(float)) / 60
+        amountpersession_str = amountpersession.apply(lambda x: '{:.2f}'.format(x).replace('.', ',') + " €")
+        amountpersession_str = amountpersession_str.to_frame(name="Betrag_pro_Einheit")
+        description = positionsinvoice['Leistung'].map(services.set_index('Leistung')['Beschreibung'])
+        description = description.to_frame(name="Beschreibung")
 
 
-    #preprocessdata
-    amountpersession = namehourdata["Minuten"].apply(lambda x: round(x * float(clientdata["Stundensatz"]) / 60, 1))
-    amountpersession = amountpersession.rename("Betrag_pro_Einheit")
+        positionsinvoice  = pd.concat([
+            positionsinvoice["Datum"].apply(lambda x: x.strftime("%d.%m.%Y")),
+            positionsinvoice["Leistung"],
+            description,
+            positionsinvoice["Minuten"].apply(lambda x: str(x) + " min"),
+            positionsinvoice["Stundensatz"].apply(lambda x: str(x) + " €"),
+            amountpersession_str
 
-    wordtable = pd.concat([namehourdata["Datum"].apply(lambda x: x.strftime("%d.%m.%Y")),
-                           namehourdata["Minuten"].apply(lambda x: str(x) + " min"),
-                           amountpersession.apply(lambda x: "%0.2f" % x + " €")], axis=1)
-    print("Die Stunden sind: ")
-    print(wordtable)
+        ], axis=1)
+        totalamount = sum(np.array(amountpersession))
+    elif config["outputmethods"][method]["positionsinvoicetype"] == "summary":
+
+        positionsinvoice = namehourdata
+        description = positionsinvoice['Leistung'].map(services.set_index('Leistung')['Beschreibung'])
+        description = description.to_frame(name="Beschreibung")
+        positionsinvoice = pd.concat([positionsinvoice,description],axis = 1)
+
+        gathersummarypositions = []
+        totalamounts = []
+        groupedbyservice = positionsinvoice.groupby(by="Leistung")
+        for servicename,datathisservice in groupedbyservice:
+            groupedbyminutes = datathisservice.groupby(by="Minuten")
+            for minutes, datathisminutes in groupedbyminutes:
+                groupedbyhourlyrate = datathisminutes.groupby(by="Stundensatz")
+                for hourlyrate, datathishourlyrate in groupedbyhourlyrate:
+                    descriptionthis = f"{datathishourlyrate['Beschreibung'].iloc[0]} {str(minutes)} min"
+                    if datathishourlyrate.shape[0] < 2: # if there is only one entry for this, add the date
+                        descriptionthis += f" ({datathishourlyrate['Datum'].iloc[0].strftime('%d.%m.%Y')})"
+                    amounthoursthis = '{:.1f}'.format(datathishourlyrate["Minuten"].astype(float).sum()/60).replace('.', ',') + ' h'
+                    hourlyratethis = '{:.2f}'.format(float(hourlyrate)).replace('.', ',') + ' €'
+                    amountpersession = (datathishourlyrate["Minuten"].astype(float) * datathishourlyrate["Stundensatz"].astype(float)) / 60
+                    totalamounts.append(amountpersession)
+                    totalsumthis = '{:.2f}'.format(amountpersession.sum()).replace('.', ',') + ' €'
+                    gathersummarypositionslist = [servicename,descriptionthis,amounthoursthis,hourlyratethis,totalsumthis]
+                    gathersummarypositions.append(gathersummarypositionslist)
+        # sehr maßgeschneidert!!
+        positionsinvoicecols = config["outputmethods"][method]["positionsinvoicecols"]
+        positionsinvoice = pd.DataFrame(gathersummarypositions,columns=positionsinvoicecols)
+
+        for amount in totalamounts:
+            totalamount += amount.sum()
+
+        # Behandlung sollte minuten beinhalten
+
+    if config["outputmethods"][method]["Ausgleichszulage"]["exists"]:
+
+        ausgleichpercent = config["outputmethods"][method]["Ausgleichszulage"]["percentage"]
+        positionsinvoice
+        descriptionausgleichszulage = '+ ' + '{:.1f}'.format(float(ausgleichpercent)).replace('.', ',') + ' % Ausgleichszulage'
+        ausgleichamount = totalamount * ausgleichpercent / 100
+        amountausgleichszulagestr = '+ ' + '{:.2f}'.format(float(ausgleichamount)).replace('.', ',') + ' €'
+
+        ausgleichszulagerow = [["",descriptionausgleichszulage,"","",amountausgleichszulagestr]]
+        ausgleichszulagerow = pd.DataFrame(ausgleichszulagerow, columns=positionsinvoicecols)
+        positionsinvoice = pd.concat([positionsinvoice,ausgleichszulagerow])
+        totalamount += ausgleichamount
+
+
 
     # insert total amount into tables[1]
-    totalamount = sum(np.array(amountpersession))
-    clientdata["Stundeninfo"] = wordtable
-    clientdata_list = [[key,clientdata[key]] for key in clientdata]
+    clientdata["Stundeninfo"] = positionsinvoice
+    print("------------------------------------------------------------")
+    print("Die Patientendaten sind:")
+    pprint.pprint(clientdata)
 
-
-    # process to prepare output for user r and b
-    if user == "r":
+    clientdata = {key.replace(" ", ""): value for key, value in clientdata.items()}
+    print("------------------------------------------------------------")
+    print("Preparing the output files before saving.")
+    if doctype == "docx":
         # input the client data  in word
         doc = DocxTemplate(template_path)
         doc.render(clientdata)
+        # outputfile_path = "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Rechnungen 2025/Rechnung_test.docx"
         doc.save(outputfile_path)
 
         ## input the hour table in word
@@ -167,11 +264,17 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
 
 
         # insert the table in the Word document
-        for index, row in wordtable.iterrows():
-            hourdatatable = doc.tables[0]   #so hourdatatable is the first table in the document
+        positionsinvoicecols = config["outputmethods"][method]["positionsinvoicecols"]
+        hourdatatablenr = config["outputmethods"][method]["table_nr_hourdata"]
+        print("inserting Matrix:")
+        pprint.pprint(positionsinvoice[positionsinvoicecols])
+        print(f"in table {hourdatatablenr}")
+
+        for index, row in positionsinvoice[positionsinvoicecols].iterrows():
+            hourdatatable = doc.tables[hourdatatablenr]   #so hourdatatable is the first table in the document
             data_row = hourdatatable.add_row().cells
             for i,(name,entry) in enumerate(row.items()):
-                    data_row[i].text = entry
+                data_row[i].text = entry
         #format it
         for row in doc.tables[0].rows:
             row.height = Cm(0.8)
@@ -180,10 +283,25 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
 
 
         totalamountstring = (str(totalamount)+"0").replace(".",",")
-        doc.tables[1].cell(0, 2).text = str(totalamount) + "0" + " €"
+        sumdatatablenr = config["outputmethods"][method]["table_nr_sum"]
+        doc.tables[sumdatatablenr].cell(0, 2).text = '{:.2f}'.format(totalamount).replace('.', ',') + " €"
+
+        if config["outputmethods"][method]["table_termine"]["exists"]:
+            table_nr_termine = config["outputmethods"][method]["table_termine"]["table_nr_termine"]
+            terminetable = doc.tables[table_nr_termine]  # so hourdatatable is the first table in the document
+            terminetable_cols = config["outputmethods"][method]["table_termine"]["cols"]
+            print("inserting Matrix:")
+            pprint.pprint(namehourdata[terminetable_cols])
+            print(f"in table {table_nr_termine}")
+            for index, row in namehourdata[terminetable_cols].iterrows():
+                data_row = terminetable.add_row().cells
+                for i, (name, entry) in enumerate(row.items()):
+                    if isinstance(entry, pd.Timestamp):
+                        entry = entry.strftime('%d.%m.%Y')
+                    data_row[i].text = entry
 
 
-    if user == "b":
+    if doctype == "xlsx":
         invoice = openpyxl.load_workbook(template_path)
         invoice_sheet = invoice ['Rechnung']
         excelsheet_locs = {"Name": ("C", 10),
@@ -197,15 +315,15 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
             location = f"{excelsheet_locs[value][0]}{excelsheet_locs[value][1]}"
             invoice_sheet[location] = f"{clientdata[value]}"
         if not np.isnan(clientdata["Versicherungsnummer"]):
-            location = f"{excelsheet_locs["Versicherungsnummer"][0]}{excelsheet_locs["Versicherungsnummer"][1]}"
-            invoice_sheet[location] = f"{clientdata["Versicherungsnummer"]}"
+            location = f"{excelsheet_locs['Versicherungsnummer'][0]}{excelsheet_locs['Versicherungsnummer'][1]}"
+            invoice_sheet[location] = f"{clientdata['Versicherungsnummer']}"
         else:
             print("no insurance number")
-            location = f"H{excelsheet_locs["Versicherungsnummer"][1]}"
+            location = f"H{excelsheet_locs['Versicherungsnummer'][1]}"
             invoice_sheet[location] = ""
-            location = f"{excelsheet_locs["Versicherungsnummer"][0]}{excelsheet_locs["Versicherungsnummer"][1]}"
+            location = f"{excelsheet_locs['Versicherungsnummer'][0]}{excelsheet_locs['Versicherungsnummer'][1]}"
             invoice_sheet[location].border = Border()
-            location = f"{"K"}{excelsheet_locs["Versicherungsnummer"][1]}"
+            location = f"{'K'}{excelsheet_locs['Versicherungsnummer'][1]}"
             invoice_sheet[location].border = Border()
 
         leistung_text = "Logopädie"
@@ -216,7 +334,7 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
         firstrows_hourdata = {"Datum": ("B", 22), "Leistungsbez": ("D", 22), "Preis/Einh.": ("G", 22),"Preis/Einh.": ("G", 22),"Sum":("I", 22)}
 
         i = 0
-        for row, session in namehourdata.iterrows():
+        for row, session in positionsinvoice.iterrows():
             invoice_sheet[f"{firstrows_hourdata['Datum'][0]}{firstrows_hourdata['Datum'][1] + i}"] = session["Datum"]
             invoice_sheet[f"{firstrows_hourdata['Datum'][0]}{firstrows_hourdata['Datum'][1] + i}"].number_format = 'DD.MM.YYYY'
             invoice_sheet[f"{firstrows_hourdata['Leistungsbez'][0]}{firstrows_hourdata['Leistungsbez'][1] + i}"] = f"{leistung_text} {str(round(session['Minuten'])).replace('.',',')} min"
@@ -226,25 +344,25 @@ def make_invoice_praxis(allhourdata_path,allclientdata_path,excel_template_path,
             i += 1
 
     # now ask to save
-    save_or_not = ask_to_save(clientdata_list)
 
 
 
-    print(f"save or not {save_or_not}")
     if save_or_not:
         safe_docs = True
         if safe_docs:
-            if user =="r":
-                print(f"Save word file to {outputfile_path}")
+            if doctype == "docx":
                 doc.save(outputfile_path)
-            if user == "b":
+                print(f"Saved word file to {outputfile_path}")
+
+            if doctype == "xlsx":
                 invoice.save(outputfile_path)
-                print(f"Save excel file to {outputfile_path}")
+                print(f"Saved excel file to {outputfile_path}")
 
         #write what I did in the archive
         try_saving = True
         while try_saving:
             try:
+                print("------------------------------------------------------------")
                 save_to_archive(thisinvoicenumber,datetime.datetime.today(),clientname,invoice_start_date,invoice_end_date,totalamount,archive_which_invoices_path)
                 try_saving = False
             except Exception as e:

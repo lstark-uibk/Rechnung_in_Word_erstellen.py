@@ -1,6 +1,8 @@
 from tkinter import *
 
+import numpy as np
 from lxml.etree import clear_error_log
+from numpy.testing.print_coercion_tables import print_new_cast_table
 from tkcalendar import Calendar, DateEntry
 from functools import partial
 import pandas as pd
@@ -25,7 +27,6 @@ def on_name_select(selected_name, clientindex, selected_clientdata, allclientdat
     for key in thisclientdata.keys():
         if key not in showvalues:
             selected_clientdata[clientindex][key] = thisclientdata[key]
-        print(selected_clientdata)
         selected_clientdata[clientindex]["Name"].value = selected_name
         selected_clientdata[clientindex]["Geb."].gui_widget["text"] = thisclientdata["Geb."].strftime("%d.%m.%Y")
         selected_clientdata[clientindex]["Geb."].value = thisclientdata["Geb."]
@@ -38,7 +39,6 @@ def on_name_select(selected_name, clientindex, selected_clientdata, allclientdat
 def stringsandyear_topath(stringsandyear,year):
     string = ""
     for x in stringsandyear:
-        print(x)
         if "year" not in x:
             string += x
         else:
@@ -48,7 +48,6 @@ def stringsandyear_topath(stringsandyear,year):
 def stringsandinvoicenumber_topath(stringsandinvoicenumber, invoicenumber, clientname, date):
     string = ""
     for x in stringsandinvoicenumber:
-        print(x)
         if ("invoicenumber" in x) :
             string += invoicenumber
         if ("clientname" in x) :
@@ -57,14 +56,8 @@ def stringsandinvoicenumber_topath(stringsandinvoicenumber, invoicenumber, clien
             string += date
         if ("date" not in x) and ("clientname" not in x) and ("invoicenumber" not in x) :
             string += x
-    print(string)
     return string
 def check_invoice_archive(year_of_invoice,outputdir_path,archive_which_invoices_path,invoice_achive_template_path,invoicenumber_pattern):
-    print(f"Year to link this invoice to: {year_of_invoice}")
-    print(f"Directory to save: {outputdir_path}")
-    if not os.path.exists(outputdir_path):
-        os.mkdir(outputdir_path)
-        print(f"Make new diectory {outputdir_path}")
 
     if not os.path.exists(archive_which_invoices_path):
         print(f"Because there was no Archive file of the year create one at {archive_which_invoices_path}")
@@ -92,6 +85,29 @@ def check_invoice_archive(year_of_invoice,outputdir_path,archive_which_invoices_
                 break
     return lastinvoice_num
 
+def ask_right_invoicenumber(question):
+    root = tk.Tk()
+    root.title("Frage")
+
+    Label(root, text=question).pack(padx=10, pady=10)
+    yes_no_frame = tk.Frame(root)
+    yes_no_frame.pack(pady=10,expand=True)
+    ttk.Style().configure('Treeview', rowheight=30)
+
+    answer = [True]
+    def button_press_y():
+        print("Invoicenumber OK")
+        answer[0] = True
+        root.destroy()
+    def button_press_n():
+        print("Change Invoicenumber")
+        answer[0] = False
+        root.destroy()
+    # Pack widgets side by side inside the last row frame
+    tk.Button(yes_no_frame, text="OK",command=button_press_y).pack(side="left", padx=10)
+    tk.Button(yes_no_frame, text="Ändern",command=button_press_n).pack(side="left", padx=10)
+    root.mainloop()
+    return answer[0]
 def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_pattern,invoicenumber_pattern_names):
     #get which invoicenumber
     answer1 = "Nimm einfach die Nächste in der Reihe"
@@ -102,7 +118,6 @@ def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_patte
         last_inv_numb_str_sugg = ""
         this_inv_numb_str_sugg = ""
         for x in invoicenumber_pattern_names:
-            print(x)
             if x in "year":
                 last_inv_numb_str_sugg += f"{invoiceyear}"
                 this_inv_numb_str_sugg += f"{invoiceyear}"
@@ -115,7 +130,6 @@ def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_patte
 
 
         result = ask_right_invoicenumber(f"Die letzte Rechnungsnummer war {last_inv_numb_str_sugg}. \nSomit wäre die nächste Rechnungsnummer {this_inv_numb_str_sugg}.")
-        print("Result:", result)
         if result:
 
             thisinvoicenumber = this_inv_numb_str_sugg
@@ -125,6 +139,7 @@ def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_patte
             # withdraw() will make the parent window disappear.
             root.withdraw()
             # shows a dialogue with a string input field
+            print("input a new invoicenumber")
             thisinvoicenumber = tk.simpledialog.askstring('Rechnungsnummer',
                                                        f"Dann kannst du sie jetzt selber eingeben (in dem Format z.b. {last_inv_numb_str_sugg}):",
                                                        parent=root)
@@ -133,13 +148,14 @@ def question_next_invoice_number(invoiceyear,lastinvoice_num,invoicenumber_patte
                 continue
 
             while not re.match(invoicenumber_pattern,thisinvoicenumber):
+                print(f"The input {thisinvoicenumber} didnot match the pattern {invoicenumber_pattern}")
                 root = tk.Tk()
                 change_place_of_window(root)
                 # withdraw() will make the parent window disappear.
                 root.withdraw()
                 # shows a dialogue with a string input field
                 thisinvoicenumber = tk.simpledialog.askstring('Rechnungsnummer',
-                                                           "Die letze eingetragen Rechnungsnummer hatte nicht das richtige Format. \nGib sie in dem Format ein wie 20241001 wobei die erste Nummer mit dem Jahr der Rechnung ersetzt wird und die zweite mit der Rechnungsnummer:",
+                                                           f"Die letze eingetragen Rechnungsnummer hatte nicht das richtige Format. \nGib sie in dem Format ein wie {this_inv_numb_str_sugg} wobei die erste Nummer mit dem Jahr der Rechnung ersetzt wird und die zweite mit der Rechnungsnummer:",
                                                            parent=root)
                 root.destroy()
     return thisinvoicenumber
@@ -152,7 +168,6 @@ def validate_input_int(char, input_value):
         # Try to convert the input value to an integer
         input_value = input_value.replace('.','')
         input_value = input_value.replace(',','.')
-        print(input_value)
         float(input_value)
         return True
     except ValueError:
@@ -196,7 +211,6 @@ def select_client(options):
 
     search_entry = tk.Entry(root, width=80)
     search_entry.pack(pady=10)
-    print(options)
     searched_options = [options]
 
     def filter_list(event,so):
@@ -237,15 +251,12 @@ def select_client(options):
         if selected:
             index, = listbox.curselection()
             last_selected = searched_options[-1]
-            print(index)
-            print(last_selected)
             selected_name[0] =  last_selected[index]
-            print(selected_name)
             # selected_name = options[index]
             root.destroy()
 
 
-    tk.Button(text="OK", command=on_ok,font=("Helvetica", 14) ).pack()
+    tk.Button(root,text="OK", command=on_ok,font=("Helvetica", 14) ).pack()
     root.mainloop()
 
 
@@ -253,7 +264,8 @@ def select_client(options):
 
 
 def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoice_end_date,summe,archive_which_invoices_path):
-    invoicenumber = int(invoicenumber)
+    # invoicenumber = int(invoicenumber)
+    print("Reading in the cassabook")
     ws_archive_which_invoices = openpyxl.load_workbook(archive_which_invoices_path)
     archive_which_invoices = ws_archive_which_invoices.worksheets[0]
     invoiceduration = invoice_start_date.strftime("%d.%m.%Y")
@@ -269,13 +281,13 @@ def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoic
             last_row_of_data += 1
         else:
             break
-    print(f"last row of data = {last_row_of_data}")
+    # print(f"Last row of data in cassabook = {last_row_of_data}")
     # first row with Summe: designates Sum row
     sum_row = archive_which_invoices.max_row
     for index,row in enumerate(archive_which_invoices):
         if row[0].value == "Summe:":
             sum_row = index + 1
-    print(f"sum_row = {sum_row}")
+    # print(f"sum_row = {sum_row}")
 
     archive_which_invoices.insert_rows(last_row_of_data+1)
     sum_row += 1
@@ -300,179 +312,341 @@ def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoic
 
     rows = list(archive_which_invoices.iter_rows(values_only = True))
     header, data = rows[0], rows[1:last_row_of_data]
-    print("---------------------\n Data", data)
+    print("The data of the cassabook is:")
+    print(data)
     # sort to the first column
-    data.sort(key = lambda x: int(x[0]))
-    # overwrite the rows
-    for row_idx, row_data in enumerate(data,start=2): # start at two to skip the header
-        for col_idx, value in enumerate(row_data, start=1):
-            archive_which_invoices.cell(row= row_idx, column=col_idx, value= value)
+    # data.sort(key = lambda x: int(x[0]))
+    # # overwrite the rows
+    # for row_idx, row_data in enumerate(data,start=2): # start at two to skip the header
+    #     for col_idx, value in enumerate(row_data, start=1):
+    #         archive_which_invoices.cell(row= row_idx, column=col_idx, value= value)
 
 
 
-    print(f"Saved the archive excel to: {archive_which_invoices_path}")
+    print(f"Saved the cassabook to: {archive_which_invoices_path}")
     ws_archive_which_invoices.save(archive_which_invoices_path)
 
 
 
 
-def show_matrix_window(matrix, frame, head = ("","")):
-
-    treeview = ttk.Treeview(frame, columns=head, show="headings")
+def show_matrix_window(frame, matrix , head = ("",""),defaultservice = None):
+    treeview = ttk.Treeview(frame, columns=head, show="headings",selectmode="extended")
 
     for colname in head:
         treeview.heading(colname, text=colname)
 
+    item_ids = []
 
-    for column in matrix:
-        columntupel = tuple(column)
-        if isinstance(columntupel[1],pd.DataFrame):
-            temp_list = list(columntupel)
-            temp_list[1] = columntupel[1].to_string(index=False)
-            columntupel = tuple(temp_list)
+    for row in matrix:
+        if defaultservice:
+            row.append(defaultservice)
+        rowtupel = tuple(row)
+        if isinstance(rowtupel[1],pd.DataFrame):
+            temp_list = list(rowtupel)
+            temp_list[1] = rowtupel[1].to_string(index=False)
+            rowtupel = tuple(temp_list)
+
+        item_id = treeview.insert("", tk.END,values=rowtupel)
+        item_ids.append(item_id)
 
 
-        treeview.insert("", tk.END,values=columntupel)
-    return treeview
+    # place_comboboxes(treeview, item_ids, combobox_column=2)
 
-    def motion_handler(tree, event):
-        f = Font(font='TkDefaultFont')
+    #
+    # def motion_handler(tree, event):
+    #     f = Font(font='TkDefaultFont')
+    #
+    #     # A helper function that will wrap a given value based on column width
+    #     def adjust_newlines(val, width, pad=10):
+    #         if not isinstance(val, str):
+    #             return val
+    #         else:
+    #             words = val.split()
+    #             lines = [[], ]
+    #             for word in words:
+    #                 line = lines[-1] + [word, ]
+    #                 if f.measure(' '.join(line)) < (width - pad):
+    #                     lines[-1].append(word)
+    #                 else:
+    #                     lines[-1] = ' '.join(lines[-1])
+    #                     lines.append([word, ])
+    #
+    #             if isinstance(lines[-1], list):
+    #                 lines[-1] = ' '.join(lines[-1])
+    #
+    #             return '\n'.join(lines)
+    #
+    #     if (event is None) or (tree.identify_region(event.x, event.y) == "separator"):
+    #         # You may be able to use this to only adjust the two columns that you care about
+    #         # print(tree.identify_column(event.x))
+    #
+    #         col_widths = [tree.column(cid)['width'] for cid in tree['columns']]
+    #
+    #         for iid in tree.get_children():
+    #             new_vals = []
+    #             for (v, w) in zip(tree.item(iid)['values'], col_widths):
+    #                 new_vals.append(adjust_newlines(v, w))
+    #             tree.item(iid, values=new_vals)
+    #
+    # def calculate_row_height(tree):
+    #     """Calculate and adjust row height to fit the text."""
+    #     # Retrieve the existing Treeview font
+    #     style = ttk.Style()
+    #     font = Font(name="TkDefaultFont", exists=True)  # Use the existing font
+    #
+    #     # Determine the required height for the tallest text
+    #     max_text_height = 0
+    #     for item in tree.get_children():
+    #         row_values = tree.item(item, "values")
+    #         for text in row_values:
+    #             # Measure the height of the text
+    #             max_text_height = max(max_text_height, font.metrics("linespace"))
+    #
+    #     # Adjust the row height dynamically
+    #     style.configure("Treeview", rowheight=max_text_height + 10)  # Add padding
+    #
+    # treeview.bind('<B1-Motion>', partial(motion_handler, treeview))
+    # motion_handler(treeview, None)   # Perform initial wrapping
+    # calculate_row_height(treeview)
+    return treeview, item_ids
 
-        # A helper function that will wrap a given value based on column width
-        def adjust_newlines(val, width, pad=10):
-            if not isinstance(val, str):
-                return val
-            else:
-                words = val.split()
-                lines = [[], ]
-                for word in words:
-                    line = lines[-1] + [word, ]
-                    if f.measure(' '.join(line)) < (width - pad):
-                        lines[-1].append(word)
-                    else:
-                        lines[-1] = ' '.join(lines[-1])
-                        lines.append([word, ])
 
-                if isinstance(lines[-1], list):
-                    lines[-1] = ' '.join(lines[-1])
+def inquire_new_services(popup,output,services,datatoinquire):
 
-                return '\n'.join(lines)
 
-        if (event is None) or (tree.identify_region(event.x, event.y) == "separator"):
-            # You may be able to use this to only adjust the two columns that you care about
-            # print(tree.identify_column(event.x))
+    entryrowsidx = [0]
 
-            col_widths = [tree.column(cid)['width'] for cid in tree['columns']]
+    labels = [tk.Label(popup, text=onedatalabel) for onedatalabel in datatoinquire]
 
-            for iid in tree.get_children():
-                new_vals = []
-                for (v, w) in zip(tree.item(iid)['values'], col_widths):
-                    new_vals.append(adjust_newlines(v, w))
-                tree.item(iid, values=new_vals)
+    for colnumber, label in enumerate(labels):
+        label.grid(column=colnumber, row=0)
 
-    def calculate_row_height(tree):
-        """Calculate and adjust row height to fit the text."""
-        # Retrieve the existing Treeview font
-        style = ttk.Style()
-        font = Font(name="TkDefaultFont", exists=True)  # Use the existing font
+    def on_combobox_change(e, combobox, descriptionlabel, hourlyratelabel):
+        selected = combobox.get()
+        descriptionlabel.config(text=services["Beschreibung"][services["Leistung"] == selected].values[0])
+        hourlyratelabel.config(text=services["Stundensatz"][services["Leistung"] == selected].values[0])
 
-        # Determine the required height for the tallest text
-        max_text_height = 0
-        for item in tree.get_children():
-            row_values = tree.item(item, "values")
-            for text in row_values:
-                # Measure the height of the text
-                max_text_height = max(max_text_height, font.metrics("linespace"))
+    internal_refs = []
+    descriptions = []
+    hourlyrates = []
+    dateentries = []
+    timeentries = []
+    hourentries = []
 
-        # Adjust the row height dynamically
-        style.configure("Treeview", rowheight=max_text_height + 10)  # Add padding
+    def is_valid_float(value):
+        """
+        Accepts a single float using either a comma or dot as decimal separator.
+        Examples: '1.2', '1,2', '-3.0', '4'
+        """
+        if value:
+            raw = value.replace(",", ".")
+            try:
+                value = float(raw)
+                return True
+            except ValueError:
+                return False
+        else:
+            return True
 
-    treeview.bind('<B1-Motion>', partial(motion_handler, treeview))
-    motion_handler(treeview, None)   # Perform initial wrapping
-    calculate_row_height(treeview)
+    vcmd = (popup.register(is_valid_float), "%P")
 
-def ask_to_save(data_list):
+    def make_new_inputrow():
+        if max(entryrowsidx) < 3:
+            row = max(entryrowsidx) + 1
+            popup.grid_rowconfigure(row, minsize=60)
+            description = tk.Label(popup, text=services["Beschreibung"][0])
+            description.grid(column=1, row=row)
+            hourlyrate = tk.Label(popup, text=services["Stundensatz"][0])
+            hourlyrate.grid(column=2, row=row)
+            dateentry = DateEntry(popup, width=12, background='darkblue',
+                                  foreground='white', borderwidth=2, date_pattern="d.m.yyyy")
+            dateentry.grid(column=3, row=row)
+            timeentry = tk.Entry(popup, validate="key", validatecommand=vcmd)
+            timeentry.grid(column=4, row=row)
+            hourentry = ttk.Entry(popup)
+            hourentry.grid(column=5, row=row)
 
+            cb = ttk.Combobox(popup, values=services["Leistung"].tolist(), state="readonly")
+            cb.set(services["Leistung"].tolist()[0])
+            cb.grid(column=0, row=row)
+            cb.bind("<<ComboboxSelected>>",
+                    lambda e: on_combobox_change(e, cb, descriptions[row - 1], hourlyrates[row - 1]))
+
+            descriptions.append(description)
+            hourlyrates.append(hourlyrate)
+            dateentries.append(dateentry)
+            timeentries.append(timeentry)
+            hourentries.append(hourentry)
+            internal_refs.append(cb)
+
+            entryrowsidx.append(row)
+        else:
+            moreinputsbutton.config(text="Mehr gehen nicht")
+
+    make_new_inputrow()
+
+    def get_input():
+        if timeentries[0].get():
+            for row in entryrowsidx:
+                if row > 0:
+                    rowoutput = []
+                    for data in [internal_refs, descriptions, hourlyrates, dateentries, timeentries, hourentries]:
+                        entry = data[row - 1]
+                        if isinstance(entry, tk.Label):
+                            outputthis = entry.cget("text")
+                        else:
+                            outputthis = entry.get()
+
+                        rowoutput.append(outputthis)
+                    output.append(rowoutput)
+
+            popup.destroy()
+        else:
+            errortext.config(text = "Anzahl Minuten darf nicht leer sein")
+
+
+    def insert_row_above_button():
+        print(f"New entry row {entryrowsidx}")
+        nt_entryrowsthis = max(entryrowsidx) + 1
+        for widget in popup.grid_slaves():
+            info = widget.grid_info()
+            r = info['row']
+            if r >= nt_entryrowsthis:
+                widget.grid_forget()
+                widget.grid(row=r + 1, column=info['column'], sticky=info.get('sticky', ''))
+
+        make_new_inputrow()
+
+    moreinputsbutton = tk.Button(popup, text="Mehr Inputs", height=2, width=20,
+                                 command=lambda: insert_row_above_button())
+    #moreinputsbutton.grid(row=4, column=2, columnspan=2)
+    errortext = Label(popup, text = "")
+    errortext.grid(row=4, column=3, columnspan=2)
+    tk.Button(popup, text="Hinzufügen", height=2, width=20, command=lambda: get_input()).grid(row=5, column=3, columnspan=2)
+
+
+def ask_to_save(data_list, hourdata, services,added_hourdata):
     root = tk.Tk()
     root.title("Überprüfung")
-    root.geometry("1000x600+50+30")
+    root.geometry("1600x1000+50+30")
 
-    mainframe = tk.Frame(root)
-    mainframe.pack()
-    left_frame = tk.Frame(mainframe)
-    right_frame = tk.Frame(mainframe)
+    default_font = tk.font.nametofont("TkDefaultFont")
+    bigger_font = default_font.copy()
+    bigger_font.configure(size=16)
 
-    left_frame.pack(side="left", fill="both", expand=True, padx=10, pady=10)
-    right_frame.pack(side="right", fill="both", expand=True, padx=10, pady=10)
+    root.grid_rowconfigure(1, weight=1)  # Middle row (frames) expands
+    root.grid_columnconfigure(0, weight=1)
+    root.grid_columnconfigure(1, weight=1)
+    root.grid_rowconfigure(2, weight=0)
+    root.grid_rowconfigure(3, weight=0)
+    # Top label (row 0)
+    top_label = tk.Label(root, text="Hier sind alle Daten nochmal zusammengefasst", bg="white", font=bigger_font)
+    top_label.grid(row=0, column=0, columnspan=2, sticky="ew")
 
-    Label(mainframe, text="Ich erstelle nun eine Rechnung mit folgenden Daten:").pack()
+    # Left frame (row 1, col 0)
+    left_frame = tk.Frame(root)
+    left_frame.grid(row=1, column=0, sticky="nsew")
+    left_frame.grid_rowconfigure(1, weight=1)
+    left_frame.grid_columnconfigure(0, weight=1)
 
-    Label(left_frame, text="Daten PatientIn").pack()
+    # Right frame (row 1, col 1)
+    right_frame = tk.Frame(root)
+    right_frame.grid(row=1, column=1, sticky="nsew")
+    right_frame.grid_rowconfigure(1, weight=1)
+    right_frame.grid_columnconfigure(0, weight=1)
+
+    # Treeview in left frame
+    left_label = tk.Label(left_frame, text="Daten PatientIn",font = bigger_font)
+    left_label.grid(row=0, column=0, sticky="ew")
     data_list_without_hours = [x for x in data_list if "Stundeninfo" not in x[0] ]
-    datalist = show_matrix_window(data_list_without_hours, left_frame, head = ("","Wert"))
-    datalist.pack(fill="x",padx=0,pady=0)
-    Label(right_frame, text="Stundendaten").pack()
+    datalist, datalist_items = show_matrix_window(left_frame,data_list_without_hours,  head = ("","Wert"))
+    datalist.grid(row = 1, column=0, sticky="nsew")
 
-    hourdata =[x for x in data_list if "Stundeninfo" in x[0]][0][1]
-    hourdata  =hourdata.sort_values(by="Datum", ascending= False)
+    # Treeview in right frame
+    right_label = tk.Label(right_frame, text="Stundendaten",font = bigger_font)
+    right_label.grid(row=0, column=0, sticky="ew")
+    hourlist, hourlist_items = show_matrix_window(right_frame,list(hourdata.values),head=tuple(hourdata.columns))
+    hourlist.grid(row=1, column=0, sticky="nsew")
+    
+    def add_services(root,hourdata,hourlist, hourlist_items, services):
+        print("Add another service")
+        popup = tk.Toplevel(root)
+        popup.title("Zusätzliche Leistung")
+        popup.geometry("900x300+150+50")
 
-    hourlist = show_matrix_window(list(hourdata.values),right_frame,head=tuple(hourdata.columns))
+        datatoinquire = services.columns.tolist()
+        datatoinquire.append("Datum")
+        datatoinquire.append("Minuten")
+        datatoinquire.append("Uhrzeit")
+        added_data = []
+        inquire_new_services(popup, added_data,services, datatoinquire)
+        popup.wait_window()
 
-    hourlist.pack(fill="x",padx=0,pady=0)
+        added_data = pd.DataFrame(added_data, columns=datatoinquire)
+        added_data["Datum"] = pd.to_datetime(added_data["Datum"])
+        added_data["Name"] = data_list[0][1]
 
-    Label(root, text="Soll ich nun einen Rechnung mit diesen Daten erstellen?").pack()
+        hourdata = pd.concat([hourdata,added_data])
+        added_hourdata.append(added_data)
+        for item in hourlist.get_children():
+            hourlist.delete(item)
+
+        for idx,row in hourdata.iterrows():
+             hourlist.insert("", tk.END, values=tuple(row))
+
+
+
+
+    tk.Button(right_frame, text="Füge noch andere Leistungen hinzu", command=lambda : add_services(root,hourdata,hourlist, hourlist_items, services)).grid(row=2, column=0, columnspan=2, sticky="ew")
+
+
+
+    spaceframe = tk.Frame(root, height=50).grid(row=2, column=0, columnspan=2, sticky="ew")
+
+    # Label above bottom frame (row 2)
+    middle_label = tk.Label(root, text="Soll ich nun einen Rechnung mit diesen Daten erstellen?", font = bigger_font)
+    middle_label.grid(row=3, column=0, columnspan=2, sticky="ew")
+    # Bottom frame (row 3)
     yes_no_frame = tk.Frame(root)
-    yes_no_frame.pack()
+    yes_no_frame.grid(row=4, column=0, columnspan=2, sticky="ew")
+    yes_no_frame.grid_propagate(False)
+
     ttk.Style().configure('Treeview', rowheight=30)
 
     answer = [False]
+
     def button_press(y_n):
         if y_n == "Y":
-            print("Y")
+            print("Selected saving: yes")
             answer[0] = True
         elif y_n == "N":
-            print("N")
             answer[0] = False
+            print("Selected saving: no \\return without saving")
         root.destroy()
-    # Pack widgets side by side inside the last row frame
-    tk.Button(yes_no_frame, text="Ja",command=lambda: button_press("Y")).pack(side="left", padx=10)
-    tk.Button(yes_no_frame, text="Nein",command=lambda: button_press("N")).pack(side="left", padx=10)
 
+    # Pack widgets side by side inside the last row frame
+    button_container = tk.Frame(yes_no_frame)
+    button_container.pack(anchor="center", pady=20)
+    tk.Button(button_container, text="Ja", command=lambda: button_press("Y")).pack(side="left", padx=10)
+    tk.Button(button_container, text="Nein", command=lambda: button_press("N")).pack(side="left", padx=10)
+
+    # Start the app
     root.mainloop()
     return answer[0]
 
-def ask_right_invoicenumber(question):
-    root = tk.Tk()
-    root.title("Frage")
 
-    Label(root, text=question).pack(padx=10, pady=10)
-    yes_no_frame = tk.Frame(root)
-    yes_no_frame.pack(pady=10,expand=True)
-    ttk.Style().configure('Treeview', rowheight=30)
 
-    answer = [True]
-    def button_press_y():
-        print("Y")
-        answer[0] = True
-        root.destroy()
-    def button_press_n():
-        print("N")
-        answer[0] = False
-        root.destroy()
-    # Pack widgets side by side inside the last row frame
-    tk.Button(yes_no_frame, text="OK",command=button_press_y).pack(side="left", padx=10)
-    tk.Button(yes_no_frame, text="Ändern",command=button_press_n).pack(side="left", padx=10)
-    root.mainloop()
-    print("proceed")
-    print("Window closed, proceeding with the program.")
-    return answer[0]
+def get_items(clientname,hourdata,services,lastdate,defaultservice = None):
+    defaulthourlyrate = services.loc[services["Leistung"] == defaultservice,"Stundensatz"].values[0]
+    hourdatacopy = hourdata.copy()
+    hourdatacopy  =hourdatacopy.sort_values(by="Datum", ascending= False)
 
-def get_date(hourdata,lastdate):
-    selected_date = None
+    returndata = []
+    somedateselected = [False]
 
     root = tk.Tk()
-    root.geometry("1000x650+50+0")
-    root.title("Auswahl des Rechnungszeitraums")
+    root.geometry("1600x700+50+0")
+    root.title(f"Auswahl des Rechnungszeitraums für die Rechnung von {clientname}")
 
     left_frame = tk.Frame(root)
     right_frame = tk.Frame(root)
@@ -493,17 +667,125 @@ def get_date(hourdata,lastdate):
                    font="Arial 14", selectmode='day')
     cal2.pack(fill="both", expand=True)
 
-    tk.Button(left_frame, text="ok",height=2, width=20, font="Arial 14", command=root.destroy).pack(pady=10)
-    data_list = hourdata.copy()
-    data_list  =data_list.sort_values(by="Datum", ascending= False)
-    data_list =   data_list.values.tolist()
-    print(lastdate)
+
+    data_list =   hourdatacopy.values.tolist()
     if lastdate:
-        Title = tk.Label(right_frame, text=f"Die letze Rechnung für diese Person wurde am {lastdate} erstellt").pack(pady=10)
-    datelist = show_matrix_window(data_list, right_frame,head = ("Rechnungsdatum","PatientIn","Stundendauer in min") )
+        Title = tk.Label(right_frame, text=f"Die letzte Rechnung für {clientname} wurde am {pd.to_datetime(lastdate).strftime('%d.%m.%Y')} erstellt").pack(pady=10)
+    head = hourdatacopy.columns.tolist()
+    head.append("Leistung")
+    head.append("Stundensatz")
+    datelist,datelist_item_ids = show_matrix_window(right_frame,data_list, head = head, defaultservice = defaultservice )
+    comboboxes_services = []
+    inputs_prices = []
+
+    def place_comboboxes_services(treeview, treeview_item_ids, combobox_options,comboboxes_column):
+        for index, item_id in enumerate(treeview_item_ids):
+            bbox = treeview.bbox(item_id, column=comboboxes_column)
+            if not bbox:
+                continue
+            x, y, width, height = bbox
+            value = treeview.set(item_id, comboboxes_column)
+
+            cb = ttk.Combobox(treeview, values=combobox_options.tolist(), state="readonly")
+            cb.set(value)
+            cb.place(x=x, y=y, width=width, height=height)
+            #dont need to update the tree, all variable are taken then form the comboboxes
+            comboboxes_services.append(cb)
+
+    def is_valid_float(value):
+        """
+        Accepts a single float using either a comma or dot as decimal separator.
+        Examples: '1.2', '1,2', '-3.0', '4'
+        """
+        if value:
+            raw = value.replace(",", ".")
+            try:
+                value = float(raw)
+                return True
+            except ValueError:
+                return False
+        else: return True
+    vcmd = (root.register(is_valid_float), "%P")
+
+    def place_inputs_prices(treeview, treeview_item_ids, inputs_column,defaulthourlyrate):
+        for index, item_id in enumerate(treeview_item_ids):
+            bbox = treeview.bbox(item_id, column=inputs_column)
+            if not bbox:
+                continue
+            x, y, width, height = bbox
+            entry = ttk.Entry(treeview, validate="key", validatecommand=vcmd)
+            entry.insert(0,defaulthourlyrate)
+            entry.place(x=x, y=y, width=width, height=height)
+            inputs_prices.append(entry)
     datelist.pack()
+    # if dropdown menu doesnot show, make waittime longer (this is a bad workaround)
+
+    # def place_comboboxes_inputs_on_treeview_after_loading():
+    #     if len(datelist.get_children()) > 0:
+    #         print("Place comboboxes")
+    #         place_comboboxes_services(datelist,datelist_item_ids, services["Leistung"],"Leistung")
+    #         place_inputs_prices(datelist, datelist_item_ids, "Stundensatz", defaulthourlyrate)
+    #         return
+    #     root.after(100,place_comboboxes_inputs_on_treeview_after_loading)
+    # place_comboboxes_inputs_on_treeview_after_loading()
+    waittimetoloadinputoverlay = 1500
+
+    root.after(waittimetoloadinputoverlay, lambda: place_comboboxes_services(datelist,datelist_item_ids, services["Leistung"],"Leistung"))  # Wait for Treeview to render
+    root.after(waittimetoloadinputoverlay, lambda: place_inputs_prices(datelist,datelist_item_ids, "Stundensatz",defaulthourlyrate))  # Wait for Treeview to render
+
+    def on_date_change(e,somedateselected):
+        somedateselected.append(True)
+        startdate = cal1.selection_get()
+        enddate = cal2.selection_get()
+        print(f"Daterange changed, {startdate} - {enddate}")
+        selected_dates = (hourdatacopy['Datum'].dt.date > startdate) & (hourdatacopy['Datum'].dt.date < enddate)
+        item_ids = np.array(datelist_item_ids)
+        datelist.selection_set(item_ids[selected_dates].tolist())
+        # print(x)
+
+    cal1.bind("<<CalendarSelected>>", lambda e: on_date_change(e, somedateselected))
+    cal2.bind("<<CalendarSelected>>", lambda e: on_date_change(e, somedateselected))
+
+    def on_ok(root,datelist,comboboxes_services,inputs_prices,hourdata,returndata):
+        all_items = datelist.get_children()
+        selected_items = datelist.selection()  # returns a tuple of selected item IDs
+
+        if selected_items:
+            matrix = hourdata.copy()
+            matrix = matrix.sort_values(by="Datum", ascending=False)
+            comboboxinput = [combobox.get() for combobox in comboboxes_services]
+            floatinputs = [input.get() for input in inputs_prices]
+
+            matrix["Leistung"] = comboboxinput
+            matrix["Stundensatz"] = floatinputs
+
+
+            for treerow, (index,matrixrow) in zip(all_items,matrix.iterrows()):
+                if treerow in selected_items:
+                    returndata.append(matrixrow.tolist())
+            root.destroy()
+        else:
+            errorlabel.config(text="Wähle mindestens ein Datum aus")
+            print("No dates selected")
+    errorlabel = tk.Label(left_frame, text="")
+    errorlabel.pack(pady=10)
+    tk.Button(left_frame, text="ok",height=2, width=20, font="Arial 14", command=lambda: on_ok(root,datelist,comboboxes_services,inputs_prices,hourdatacopy,returndata)).pack(pady=10)
+
     root.mainloop()
-    return cal1.selection_get(), cal2.selection_get()
+
+    #this happens after root.destroy
+    returndata = pd.DataFrame(returndata, columns=head)
+    # check whether something was selected
+    if not np.any(somedateselected):
+        date1 = returndata.Datum.min()
+        date2 = returndata.Datum.max()
+    else:
+        date1 = cal1.get_date()
+        date2 = cal2.get_date()
+        date1 = pd.to_datetime(date1)
+        date2 = pd.to_datetime(date2)
+
+    return returndata, date1, date2
 
 
 def input_new_person(allclientdata_path):
@@ -629,12 +911,8 @@ def insert_hourdata(allhourdata_path,clientname):
     clienthourdata = clienthourdata[0]
     datestherapy = list(filter(None,[row[0] for row in clienthourdata] ))
     lengththerapy = list(filter(None,[row[1] for row in clienthourdata]))
-    print("unparsed")
-    print(datestherapy)
     datestherapy = list(map(lambda x: dateutil.parser.parse(x, dayfirst = True), datestherapy))
     lengththerapy = list(map(lambda x: float(x), lengththerapy))
-    print("parsed")
-    print(datestherapy)
 
     excelsheet_hourdata = openpyxl.load_workbook(allhourdata_path)  #
     excelsheet_hourdata.iso_dates = True
