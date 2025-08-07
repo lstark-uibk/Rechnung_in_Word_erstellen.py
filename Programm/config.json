@@ -1,0 +1,88 @@
+{
+	"username": "m",
+	"location":"Lans",
+	"comment": "with amountpersession_location =  sevices I search for the hourlyrate in the services file if amountpersession_location =  clientdata i search for it in the clientdata, with hourtable = all entris i show all hour entries, with hourtable = summary, i summarize all entries to one line",
+
+	"outputmethods": {
+		"Krankenkasse": {
+			"template_path" : "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Gogl/Rechnung Krankenkasse Beispiel_ls.docx",
+			"doctype" : "docx",
+			"invoice_name": ["RE ", "invoicenumber", "clientname", " " , "date", ".docx"],
+			"function_to_evoce": "make_invoice_praxis",
+			"table_nr_headerdata": 0,
+			"table_nr_hourdata": 1,
+			"table_nr_sum": 2,
+			"amountpersession_location": "services",
+			"hourdescription" : "som way to codify the hourdescription",
+			"defaultservice": "ET03",
+			"positionsinvoicetype": "all entries",
+			"positionsinvoicecols": ["Leistung","Datum","Beschreibung","Minuten","Stundensatz","Betrag_pro_Einheit"],
+			"Ausgleichszulage": {"exists":0,"percentage":""},
+			"table_termine" : {"exists":0,"table_nr_termine": ""}	
+			
+
+
+		},
+		"Land Tirol": {
+			"template_path" : "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Gogl/Rechnung Land Tirol Beispiel_ls.docx",
+			"doctype" : "docx",
+			"invoice_name": ["RE ", "invoicenumber", "clientname", " " , "date", ".docx"],
+			"function_to_evoce": "make_invoice_praxis",
+			"table_nr_headerdata": 0,
+			"table_nr_hourdata": 0,
+			"table_nr_sum": 1,
+			"amountpersession_location": "services",
+			"hourdescription" : "som way to codify the hourdescription",
+			"defaultservice": "REHA",
+			"positionsinvoicetype": "summary",
+			"positionsinvoicecols": ["Leistung","Beschreibung","Anzahl Stunden","Stundensatz","Betrag_pro_Einheit"],
+			"Ausgleichszulage": {"exists":1,"percentage":3.4},
+			"table_termine" : {"exists":1,"table_nr_termine": 2, "cols":["Datum","Uhrzeit"]}	
+
+
+			
+			
+		},
+			"Selbstbehalt Land Tirol": {
+			"template_path" : "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Gogl/Rechnung Selbstbehalt Landkind Beispiel_ls.docx",
+			"doctype" : "docx",
+			"invoice_name": ["RE ", "invoicenumber", "clientname", " " , "date", ".docx"],
+			"function_to_evoce": "make_invoice_praxis",
+			"table_nr_headerdata": 0,
+			"table_nr_hourdata": 1,
+			"table_nr_sum": 2,
+			"amountpersession_location": "services",
+			"hourdescription" : "som way to codify the hourdescription",
+			"defaultservice": "SB",
+			"positionsinvoicetype": "all entries",
+			"positionsinvoicecols": ["Leistung","Datum","Beschreibung","Minuten","Stundensatz","Betrag_pro_Einheit"],
+			"Ausgleichszulage": {"exists":0,"percentage":""},
+			"table_termine" : {"exists":0,"table_nr_termine": ""}	
+		}
+
+	},
+	"data": {
+		"servicedata": "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Daten/Leistungsdaten.xlsx",
+		"clientdata": "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Daten/Datenblatt.xlsx"
+	},
+	"cashbook": {"template_path": "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Vorlagen/Kassabuch_Vorlage.xlsx",
+		"cashbookfilenamestructure": ["Kassabuch_", "year",".xlsx"],
+		"cashbookbuchdir": "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Kassabuch" ,
+		"comment": "with cashbookbuchdir =  outputdir you can save it in the same directory as the output directory"
+	},
+	"invoicenumber":{
+		"invoicenumber_pattern": "(\\d{4})-(\\d+)",
+		"invoicenumber_pattern_example": "2024-001",
+		"invoicenumber_pattern_names": ["year", "-", "invoicenumber"]
+	},
+	"output":{
+		"suppath": "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Rechnungen",
+		"directorynamestructure": ["Rechnungen_","year"]
+	},
+	"newperson":{
+		"child_yn_idx":1,
+		"sex_idx": 2,
+		"dateenties": [3,12,15]
+	}
+
+} 
