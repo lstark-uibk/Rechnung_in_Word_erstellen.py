@@ -8,7 +8,7 @@ import json
 
 # this is branch for maria
 def main():
-    with open("/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Programm/config.json", 'r') as f:
+    with open(r"C:\Users\goglm\Desktop\Ergotherapie\Buchhaltung\Abrechnungsprogramm\Programm\config.json", 'r') as f:
         config = json.load(f)
 
     # Create the main window

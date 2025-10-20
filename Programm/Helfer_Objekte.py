@@ -1,7 +1,7 @@
 from tkinter import *
 
 import numpy as np
-from lxml.etree import clear_error_log
+#from lxml.etree import clear_error_log
 from numpy.testing.print_coercion_tables import print_new_cast_table
 from tkcalendar import Calendar, DateEntry
 from functools import partial
@@ -71,11 +71,11 @@ def check_invoice_archive(year_of_invoice,outputdir_path,archive_which_invoices_
         lastinvoice_year = year_of_invoice
         lastinvoice_num = 1
 
-    invoicenumbers = pd.read_excel(archive_which_invoices_path).iloc[:-2,0] # get the invoice numbers out of the invoice archive
+    invoicenumbers = pd.read_excel(archive_which_invoices_path).iloc[:-2,0] # get the invoice numbers out of the invoice archive last two rows are sum rows
     # search for the first invoicenumer which fits the pattern
     invoicenumber_pattern = invoicenumber_pattern
     lastinvoice_num = 0
-    for index, entry in invoicenumbers.iloc[::-1].items():
+    for index, entry in invoicenumbers[~pd.isna(invoicenumbers)].items():
         if not pd.isnull(entry):
             entry = str(entry)
             if re.match(invoicenumber_pattern, entry):
@@ -528,7 +528,7 @@ def inquire_new_services(popup,output,services,datatoinquire):
 def ask_to_save(data_list, hourdata, services,added_hourdata):
     root = tk.Tk()
     root.title("Überprüfung")
-    root.geometry("1600x1000+50+30")
+    root.geometry("1600x900+50+30")
 
     default_font = tk.font.nametofont("TkDefaultFont")
     bigger_font = default_font.copy()
@@ -604,7 +604,7 @@ def ask_to_save(data_list, hourdata, services,added_hourdata):
     spaceframe = tk.Frame(root, height=50).grid(row=2, column=0, columnspan=2, sticky="ew")
 
     # Label above bottom frame (row 2)
-    middle_label = tk.Label(root, text="Soll ich nun einen Rechnung mit diesen Daten erstellen?", font = bigger_font)
+    middle_label = tk.Label(root, text="Soll ich nun eine Rechnung mit diesen Daten erstellen?", font = bigger_font)
     middle_label.grid(row=3, column=0, columnspan=2, sticky="ew")
     # Bottom frame (row 3)
     yes_no_frame = tk.Frame(root)
@@ -687,6 +687,13 @@ def get_items(clientname,hourdata,services,lastdate,defaultservice = None):
             value = treeview.set(item_id, comboboxes_column)
 
             cb = ttk.Combobox(treeview, values=combobox_options.tolist(), state="readonly")
+
+            def on_combobox_changed(e,item_id):
+                print(item_id)
+                selected = comboboxes_services[index].get()
+                print(selected)
+
+            cb.bind("<<ComboboxSelected>>",lambda e: on_combobox_changed(e,index))
             cb.set(value)
             cb.place(x=x, y=y, width=width, height=height)
             #dont need to update the tree, all variable are taken then form the comboboxes
@@ -728,15 +735,15 @@ def get_items(clientname,hourdata,services,lastdate,defaultservice = None):
     #         return
     #     root.after(100,place_comboboxes_inputs_on_treeview_after_loading)
     # place_comboboxes_inputs_on_treeview_after_loading()
-    waittimetoloadinputoverlay = 1500
+    waittimetoloadinputoverlay = 500
 
     root.after(waittimetoloadinputoverlay, lambda: place_comboboxes_services(datelist,datelist_item_ids, services["Leistung"],"Leistung"))  # Wait for Treeview to render
     root.after(waittimetoloadinputoverlay, lambda: place_inputs_prices(datelist,datelist_item_ids, "Stundensatz",defaulthourlyrate))  # Wait for Treeview to render
 
     def on_date_change(e,somedateselected):
         somedateselected.append(True)
-        startdate = cal1.selection_get()
-        enddate = cal2.selection_get()
+        startdate = cal1.selection_get() - datetime.timedelta(days=1)
+        enddate = cal2.selection_get() + datetime.timedelta(days=1)
         print(f"Daterange changed, {startdate} - {enddate}")
         selected_dates = (hourdatacopy['Datum'].dt.date > startdate) & (hourdatacopy['Datum'].dt.date < enddate)
         item_ids = np.array(datelist_item_ids)

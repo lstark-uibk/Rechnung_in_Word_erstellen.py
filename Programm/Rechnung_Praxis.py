@@ -4,7 +4,7 @@ from openpyxl.styles import Border
 import pandas as pd
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx import Document
-from docx.shared import Cm
+from docx.shared import Cm, Pt
 import os
 import numpy as np
 import datetime
@@ -41,8 +41,11 @@ def make_invoice_praxis(config,method):
     #select which client
     allclientsnames = list(allclientdata.keys())
     allclientsnames_sheetnames = [x for x in allclientsnames if x != "Vorlage"]
-
-    allclientsnames = [allclientdata[x][1]["Name"] for x in allclientsnames_sheetnames]
+    def getname(x):
+        try:
+            return allclientdata[x][1]["Name"]
+        except: pass
+    allclientsnames = [getname(x) for x in allclientsnames_sheetnames if getname(x) is not None]
 
     print("All client names are:")
     pprint.pprint(allclientsnames)
@@ -164,7 +167,10 @@ def make_invoice_praxis(config,method):
         clientdata["HerrFrau"] = "Frau"
 
     clientdata["Geburtstag"] = clientdata["Geburtstag"].strftime('%d.%m.%Y')
-    clientdata["Gültige Genehmigung Land Tirol ab"] = clientdata["Gültige Genehmigung Land Tirol ab"].strftime('%d.%m.%Y')
+    try:
+        clientdata["Gültige Genehmigung Land Tirol ab"] = clientdata["Gültige Genehmigung Land Tirol ab"].strftime('%d.%m.%Y')
+    except: pass
+    clientdata["Typeinvoice"] = config["outputmethods"][method]["typeinvoicetext"]
     clientdata_list = [[key,clientdata[key]] for key in clientdata]
     addedhourdata = []
     save_or_not = ask_to_save(clientdata_list, namehourdata, services, addedhourdata)
@@ -254,51 +260,15 @@ def make_invoice_praxis(config,method):
     if doctype == "docx":
         # input the client data  in word
         doc = DocxTemplate(template_path)
+        totalamountstring = (str(totalamount)+"0").replace(".",",")
+        clientdata["Endsumme"] = totalamountstring
+        clientdata["Stundentabelle"] = positionsinvoice.to_dict(orient="records")
         doc.render(clientdata)
         # outputfile_path = "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Rechnungen 2025/Rechnung_test.docx"
         doc.save(outputfile_path)
 
         ## input the hour table in word
         doc = Document(outputfile_path)
-        doc.tables
-
-
-        # insert the table in the Word document
-        positionsinvoicecols = config["outputmethods"][method]["positionsinvoicecols"]
-        hourdatatablenr = config["outputmethods"][method]["table_nr_hourdata"]
-        print("inserting Matrix:")
-        pprint.pprint(positionsinvoice[positionsinvoicecols])
-        print(f"in table {hourdatatablenr}")
-
-        for index, row in positionsinvoice[positionsinvoicecols].iterrows():
-            hourdatatable = doc.tables[hourdatatablenr]   #so hourdatatable is the first table in the document
-            data_row = hourdatatable.add_row().cells
-            for i,(name,entry) in enumerate(row.items()):
-                data_row[i].text = entry
-        #format it
-        for row in doc.tables[0].rows:
-            row.height = Cm(0.8)
-            row.alignment = WD_TABLE_ALIGNMENT.CENTER
-
-
-
-        totalamountstring = (str(totalamount)+"0").replace(".",",")
-        sumdatatablenr = config["outputmethods"][method]["table_nr_sum"]
-        doc.tables[sumdatatablenr].cell(0, 2).text = '{:.2f}'.format(totalamount).replace('.', ',') + " €"
-
-        if config["outputmethods"][method]["table_termine"]["exists"]:
-            table_nr_termine = config["outputmethods"][method]["table_termine"]["table_nr_termine"]
-            terminetable = doc.tables[table_nr_termine]  # so hourdatatable is the first table in the document
-            terminetable_cols = config["outputmethods"][method]["table_termine"]["cols"]
-            print("inserting Matrix:")
-            pprint.pprint(namehourdata[terminetable_cols])
-            print(f"in table {table_nr_termine}")
-            for index, row in namehourdata[terminetable_cols].iterrows():
-                data_row = terminetable.add_row().cells
-                for i, (name, entry) in enumerate(row.items()):
-                    if isinstance(entry, pd.Timestamp):
-                        entry = entry.strftime('%d.%m.%Y')
-                    data_row[i].text = entry
 
 
     if doctype == "xlsx":

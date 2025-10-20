@@ -5,30 +5,29 @@
 
 	"outputmethods": {
 		"Krankenkasse": {
-			"template_path" : "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Gogl/Rechnung Krankenkasse Beispiel_ls.docx",
-			"doctype" : "docx",
+			"template_path" :"C:/Users/goglm/Desktop/Ergotherapie/Buchhaltung/Abrechnungsprogramm/Vorlagen/Rechnung Krankenkasse_Selbstbehalt_ls.docx",
+            "doctype" : "docx",
 			"invoice_name": ["RE ", "invoicenumber", "clientname", " " , "date", ".docx"],
 			"function_to_evoce": "make_invoice_praxis",
-			"table_nr_headerdata": 0,
-			"table_nr_hourdata": 1,
-			"table_nr_sum": 2,
+			"table_nr_hourdata": 0,
+			"table_nr_sum": 1,
 			"amountpersession_location": "services",
 			"hourdescription" : "som way to codify the hourdescription",
 			"defaultservice": "ET03",
 			"positionsinvoicetype": "all entries",
 			"positionsinvoicecols": ["Leistung","Datum","Beschreibung","Minuten","Stundensatz","Betrag_pro_Einheit"],
 			"Ausgleichszulage": {"exists":0,"percentage":""},
-			"table_termine" : {"exists":0,"table_nr_termine": ""}	
+			"table_termine" : {"exists":0,"table_nr_termine": ""},
+            "typeinvoicetext": ""
 			
 
 
 		},
 		"Land Tirol": {
-			"template_path" : "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Gogl/Rechnung Land Tirol Beispiel_ls.docx",
+			"template_path" : "C:/Users/goglm/Desktop/Ergotherapie/Buchhaltung/Abrechnungsprogramm/Vorlagen/Rechnung Land Tirol Beispiel_ls.docx",
 			"doctype" : "docx",
 			"invoice_name": ["RE ", "invoicenumber", "clientname", " " , "date", ".docx"],
 			"function_to_evoce": "make_invoice_praxis",
-			"table_nr_headerdata": 0,
 			"table_nr_hourdata": 0,
 			"table_nr_sum": 1,
 			"amountpersession_location": "services",
@@ -37,37 +36,39 @@
 			"positionsinvoicetype": "summary",
 			"positionsinvoicecols": ["Leistung","Beschreibung","Anzahl Stunden","Stundensatz","Betrag_pro_Einheit"],
 			"Ausgleichszulage": {"exists":1,"percentage":3.4},
-			"table_termine" : {"exists":1,"table_nr_termine": 2, "cols":["Datum","Uhrzeit"]}	
+			"table_termine" : {"exists":1,"table_nr_termine": 2, "cols":["Datum","Uhrzeit"]},
+            "typeinvoicetext": ""
 
 
 			
 			
 		},
 			"Selbstbehalt Land Tirol": {
-			"template_path" : "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Gogl/Rechnung Selbstbehalt Landkind Beispiel_ls.docx",
+			"template_path" :"C:/Users/goglm/Desktop/Ergotherapie/Buchhaltung/Abrechnungsprogramm/Vorlagen/Rechnung Krankenkasse_Selbstbehalt_ls.docx",
 			"doctype" : "docx",
 			"invoice_name": ["RE ", "invoicenumber", "clientname", " " , "date", ".docx"],
 			"function_to_evoce": "make_invoice_praxis",
-			"table_nr_headerdata": 0,
-			"table_nr_hourdata": 1,
-			"table_nr_sum": 2,
+			"table_nr_hourdata": 0,
+			"table_nr_sum": 1,
 			"amountpersession_location": "services",
 			"hourdescription" : "som way to codify the hourdescription",
 			"defaultservice": "SB",
 			"positionsinvoicetype": "all entries",
 			"positionsinvoicecols": ["Leistung","Datum","Beschreibung","Minuten","Stundensatz","Betrag_pro_Einheit"],
 			"Ausgleichszulage": {"exists":0,"percentage":""},
-			"table_termine" : {"exists":0,"table_nr_termine": ""}	
+			"table_termine" : {"exists":0,"table_nr_termine": ""},
+            "typeinvoicetext": "Selbsbehalt Land Tirol"
+
 		}
 
 	},
 	"data": {
-		"servicedata": "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Daten/Leistungsdaten.xlsx",
-		"clientdata": "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Daten/Datenblatt.xlsx"
+		"servicedata": "C:/Users/goglm/Desktop/Ergotherapie/Buchhaltung/Daten/Leistungsdaten.xlsx",
+		"clientdata": "C:/Users/goglm/Desktop/Ergotherapie/Buchhaltung/Daten/Datenblatt.xlsx"
 	},
-	"cashbook": {"template_path": "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Vorlagen/Kassabuch_Vorlage.xlsx",
+	"cashbook": {"template_path": "C:/Users/goglm/Desktop/Ergotherapie/Buchhaltung/Abrechnungsprogramm/Vorlagen/Kassabuch_Vorlage.xlsx",
 		"cashbookfilenamestructure": ["Kassabuch_", "year",".xlsx"],
-		"cashbookbuchdir": "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Kassabuch" ,
+		"cashbookbuchdir": "C:/Users/goglm/Desktop/Ergotherapie/Buchhaltung/Kassabuch",
 		"comment": "with cashbookbuchdir =  outputdir you can save it in the same directory as the output directory"
 	},
 	"invoicenumber":{
@@ -76,7 +77,7 @@
 		"invoicenumber_pattern_names": ["year", "-", "invoicenumber"]
 	},
 	"output":{
-		"suppath": "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Rechnungen",
+		"suppath": "C:/Users/goglm/Desktop/Ergotherapie/Buchhaltung/Rechnungen",
 		"directorynamestructure": ["Rechnungen_","year"]
 	},
 	"newperson":{
