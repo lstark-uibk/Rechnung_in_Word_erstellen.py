@@ -80,7 +80,7 @@ def make_invoice_praxis(config,method):
         selected_data,invoice_start_date,invoice_end_date = get_items(clientname,namehourdata,services,invoicetime_last, config["outputmethods"][method]["defaultservice"])
         # selected_data,invoice_start_date,invoice_end_date = namehourdata, namehourdata.Datum.min(),namehourdata.Datum.max()
 
-        print("Ich nehme alle Termine von " + clientname + " ab: " + invoice_start_date.strftime("%d.%m.%Y") + " bis zum " + invoice_end_date.strftime("%d.%m.%Y") )
+        print(f"Ich nehme alle Termine von {clientname} ab: {invoice_start_date} bis zum {invoice_end_date}" )
         print("The data for this person is")
         pprint.pprint(selected_data)
         print("------------------------------------------------------------")
@@ -151,10 +151,9 @@ def make_invoice_praxis(config,method):
 
     clientdata["Rechnungsnummer"] = thisinvoicenumber
     if pd.isna(clientdata["Versicherungsnummer"]):
-        clientdata["Versicherungsnummer"] = ""
-        clientdata["Versicherungsnummerlabel"] = ""
+        clientdata["Versicherungsnummertext"] = ""
     else:
-        clientdata["Versicherungsnummerlabel"] = "Versicherungsnummer"
+        clientdata["Versicherungsnummertext"] = f"Versicherungsnummer: {clientdata["Versicherungsnummer"]}"
     clientdata["Heute"] = datetime.date.today().strftime("%d.%m.%Y")
     clientdata["Wordkindtext"] = ""
     clientdata["HerrFrau"] = ""
@@ -188,16 +187,18 @@ def make_invoice_praxis(config,method):
         description = positionsinvoice['Leistung'].map(services.set_index('Leistung')['Beschreibung'])
         description = description.to_frame(name="Beschreibung")
 
+        datums =   positionsinvoice["Datum"].apply(lambda x: x.strftime("%d.%m.%Y"))
 
         positionsinvoice  = pd.concat([
-            positionsinvoice["Datum"].apply(lambda x: x.strftime("%d.%m.%Y")),
             positionsinvoice["Leistung"],
+            datums,
             description,
             positionsinvoice["Minuten"].apply(lambda x: str(x) + " min"),
             positionsinvoice["Stundensatz"].apply(lambda x: str(x) + " €"),
             amountpersession_str
 
         ], axis=1)
+        print(f"++++++++++{positionsinvoice}")
         totalamount = sum(np.array(amountpersession))
     elif config["outputmethods"][method]["positionsinvoicetype"] == "summary":
 
@@ -213,17 +214,19 @@ def make_invoice_praxis(config,method):
             groupedbyminutes = datathisservice.groupby(by="Minuten")
             for minutes, datathisminutes in groupedbyminutes:
                 groupedbyhourlyrate = datathisminutes.groupby(by="Stundensatz")
+                amount_hours = groupedbyhourlyrate.size().iloc[0]
                 for hourlyrate, datathishourlyrate in groupedbyhourlyrate:
-                    descriptionthis = f"{datathishourlyrate['Beschreibung'].iloc[0]} {str(minutes)} min"
+                    descriptionthis = f"{datathishourlyrate['Beschreibung'].iloc[0]}" #{str(minutes)} min"
                     if datathishourlyrate.shape[0] < 2: # if there is only one entry for this, add the date
                         descriptionthis += f" ({datathishourlyrate['Datum'].iloc[0].strftime('%d.%m.%Y')})"
-                    amounthoursthis = '{:.1f}'.format(datathishourlyrate["Minuten"].astype(float).sum()/60).replace('.', ',') + ' h'
+                    minutesthis = '{:.0f}'.format(round(datathishourlyrate["Minuten"].astype(float))[0]).replace('.', ',') + ' min'
                     hourlyratethis = '{:.2f}'.format(float(hourlyrate)).replace('.', ',') + ' €'
                     amountpersession = (datathishourlyrate["Minuten"].astype(float) * datathishourlyrate["Stundensatz"].astype(float)) / 60
                     totalamounts.append(amountpersession)
                     totalsumthis = '{:.2f}'.format(amountpersession.sum()).replace('.', ',') + ' €'
-                    gathersummarypositionslist = [servicename,descriptionthis,amounthoursthis,hourlyratethis,totalsumthis]
-                    gathersummarypositions.append(gathersummarypositionslist)
+            gathersummarypositionslist = [servicename,descriptionthis,amount_hours,minutesthis,totalsumthis]
+            gathersummarypositions.append(gathersummarypositionslist)
+
         # sehr maßgeschneidert!!
         positionsinvoicecols = config["outputmethods"][method]["positionsinvoicecols"]
         positionsinvoice = pd.DataFrame(gathersummarypositions,columns=positionsinvoicecols)
@@ -236,7 +239,7 @@ def make_invoice_praxis(config,method):
     if config["outputmethods"][method]["Ausgleichszulage"]["exists"]:
 
         ausgleichpercent = config["outputmethods"][method]["Ausgleichszulage"]["percentage"]
-        positionsinvoice
+
         descriptionausgleichszulage = '+ ' + '{:.1f}'.format(float(ausgleichpercent)).replace('.', ',') + ' % Ausgleichszulage'
         ausgleichamount = totalamount * ausgleichpercent / 100
         amountausgleichszulagestr = '+ ' + '{:.2f}'.format(float(ausgleichamount)).replace('.', ',') + ' €'
@@ -260,15 +263,45 @@ def make_invoice_praxis(config,method):
     if doctype == "docx":
         # input the client data  in word
         doc = DocxTemplate(template_path)
-        totalamountstring = (str(totalamount)+"0").replace(".",",")
+        roundedtotal = round(totalamount, 2)
+        totalamountstring = '{:.2f}'.format(float(roundedtotal)).replace('.', ',') + " €"
+
         clientdata["Endsumme"] = totalamountstring
         clientdata["Stundentabelle"] = positionsinvoice.to_dict(orient="records")
+        print(f"++++++++++++++{clientdata['Stundentabelle']}")
+        try:
+            terminetable_cols = config["outputmethods"][method]["table_termine"]["cols"]
+            termine_table = namehourdata[terminetable_cols]
+            for col in termine_table.select_dtypes(include=["datetime64[ns]"]).columns:
+                termine_table[col] = termine_table[col].dt.strftime('%d.%m.%Y')
+            termine_table[terminetable_cols[1]] = pd.to_datetime(termine_table.loc[:,terminetable_cols[1]], format="%H:%M:%S").dt.strftime("%H:%M")
+            clientdata["Termintabelle"] = termine_table.to_dict(orient="records")
+        except: pass
         doc.render(clientdata)
         # outputfile_path = "/home/leander/Documents/pycharm_projects/Abrechnungsprogramm/Rechnungen 2025/Rechnung_test.docx"
-        doc.save(outputfile_path)
+        try_saving = True
+        while try_saving:
+            try:
+                doc.save(outputfile_path)
+                try_saving = False
+            except Exception as e:
 
-        ## input the hour table in word
-        doc = Document(outputfile_path)
+                def show_alert():
+                    # Display an alert message box with an "Okay" button
+                    tk.messagebox.showinfo("Fehler",
+                                           f"Ich konnte das Word für die Rechnung nicht speichern. Schließe zuerst die Datei {outputfile_path}")
+
+                print("error in saving archive")
+                print(e)
+                root = tk.Tk()
+                root.withdraw()  # Hide the main window
+
+                # Show the alert
+                show_alert()
+
+                print("The alert has been dismissed. Continuing with the rest of the code...")
+                root.quit()
+
 
 
     if doctype == "xlsx":

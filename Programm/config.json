@@ -7,7 +7,7 @@
 		"Krankenkasse": {
 			"template_path" :"C:/Users/goglm/Desktop/Ergotherapie/Buchhaltung/Abrechnungsprogramm/Vorlagen/Rechnung Krankenkasse_Selbstbehalt_ls.docx",
             "doctype" : "docx",
-			"invoice_name": ["RE ", "invoicenumber", "clientname", " " , "date", ".docx"],
+			"invoice_name": ["RE ", "invoicenumber",  " "," clientname", " " , "date", ".docx"],
 			"function_to_evoce": "make_invoice_praxis",
 			"table_nr_hourdata": 0,
 			"table_nr_sum": 1,
@@ -18,15 +18,15 @@
 			"positionsinvoicecols": ["Leistung","Datum","Beschreibung","Minuten","Stundensatz","Betrag_pro_Einheit"],
 			"Ausgleichszulage": {"exists":0,"percentage":""},
 			"table_termine" : {"exists":0,"table_nr_termine": ""},
-            "typeinvoicetext": ""
+            		"typeinvoicetext": ""
 			
 
 
 		},
 		"Land Tirol": {
-			"template_path" : "C:/Users/goglm/Desktop/Ergotherapie/Buchhaltung/Abrechnungsprogramm/Vorlagen/Rechnung Land Tirol Beispiel_ls.docx",
+			"template_path" : "C:/Users/goglm/Desktop/Ergotherapie/Buchhaltung/Abrechnungsprogramm/Vorlagen/Rechnung Land Tirol_ls.docx",
 			"doctype" : "docx",
-			"invoice_name": ["RE ", "invoicenumber", "clientname", " " , "date", ".docx"],
+			"invoice_name": ["RE ", "invoicenumber", " ","clientname", " " , "date", ".docx"],
 			"function_to_evoce": "make_invoice_praxis",
 			"table_nr_hourdata": 0,
 			"table_nr_sum": 1,
@@ -34,10 +34,10 @@
 			"hourdescription" : "som way to codify the hourdescription",
 			"defaultservice": "REHA",
 			"positionsinvoicetype": "summary",
-			"positionsinvoicecols": ["Leistung","Beschreibung","Anzahl Stunden","Stundensatz","Betrag_pro_Einheit"],
+			"positionsinvoicecols": ["Leistung","Beschreibung","Anzahl_EH","Minuten","Betrag_pro_Einheit"],
 			"Ausgleichszulage": {"exists":1,"percentage":3.4},
 			"table_termine" : {"exists":1,"table_nr_termine": 2, "cols":["Datum","Uhrzeit"]},
-            "typeinvoicetext": ""
+            		"typeinvoicetext": ""
 
 
 			
@@ -46,18 +46,16 @@
 			"Selbstbehalt Land Tirol": {
 			"template_path" :"C:/Users/goglm/Desktop/Ergotherapie/Buchhaltung/Abrechnungsprogramm/Vorlagen/Rechnung Krankenkasse_Selbstbehalt_ls.docx",
 			"doctype" : "docx",
-			"invoice_name": ["RE ", "invoicenumber", "clientname", " " , "date", ".docx"],
+			"invoice_name": ["RE ", "invoicenumber",  " "," clientname", " " , "date", ".docx"],
 			"function_to_evoce": "make_invoice_praxis",
-			"table_nr_hourdata": 0,
-			"table_nr_sum": 1,
 			"amountpersession_location": "services",
-			"hourdescription" : "som way to codify the hourdescription",
+			"hourdescription" : "some way to codify the hourdescription",
 			"defaultservice": "SB",
 			"positionsinvoicetype": "all entries",
 			"positionsinvoicecols": ["Leistung","Datum","Beschreibung","Minuten","Stundensatz","Betrag_pro_Einheit"],
 			"Ausgleichszulage": {"exists":0,"percentage":""},
 			"table_termine" : {"exists":0,"table_nr_termine": ""},
-            "typeinvoicetext": "Selbsbehalt Land Tirol"
+            		"typeinvoicetext": "Selbsbehalt Land Tirol"
 
 		}
 

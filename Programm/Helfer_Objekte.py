@@ -75,7 +75,7 @@ def check_invoice_archive(year_of_invoice,outputdir_path,archive_which_invoices_
     # search for the first invoicenumer which fits the pattern
     invoicenumber_pattern = invoicenumber_pattern
     lastinvoice_num = 0
-    for index, entry in invoicenumbers[~pd.isna(invoicenumbers)].items():
+    for index, entry in invoicenumbers[~pd.isna(invoicenumbers)][::-1].items():
         if not pd.isnull(entry):
             entry = str(entry)
             if re.match(invoicenumber_pattern, entry):
@@ -329,7 +329,7 @@ def save_to_archive(invoicenumber,datetoday,clientname,invoice_start_date,invoic
 
 
 
-def show_matrix_window(frame, matrix , head = ("",""),defaultservice = None):
+def show_matrix_window(frame, matrix , head = ("",""),defaultservice = None, defaulthourlyrate = None):
     treeview = ttk.Treeview(frame, columns=head, show="headings",selectmode="extended")
 
     for colname in head:
@@ -340,6 +340,8 @@ def show_matrix_window(frame, matrix , head = ("",""),defaultservice = None):
     for row in matrix:
         if defaultservice:
             row.append(defaultservice)
+        if defaulthourlyrate:
+            row.append(defaulthourlyrate)
         rowtupel = tuple(row)
         if isinstance(rowtupel[1],pd.DataFrame):
             temp_list = list(rowtupel)
@@ -565,7 +567,12 @@ def ask_to_save(data_list, hourdata, services,added_hourdata):
     # Treeview in right frame
     right_label = tk.Label(right_frame, text="Stundendaten",font = bigger_font)
     right_label.grid(row=0, column=0, sticky="ew")
-    hourlist, hourlist_items = show_matrix_window(right_frame,list(hourdata.values),head=tuple(hourdata.columns))
+
+    hourdatacopy_toshow = hourdata.copy()
+    for col in hourdatacopy_toshow.select_dtypes(include=["datetime64[ns]"]).columns:
+        hourdatacopy_toshow[col] = hourdatacopy_toshow[col].dt.strftime('%d.%m.%Y')
+
+    hourlist, hourlist_items = show_matrix_window(right_frame,list(hourdatacopy_toshow.values),head=tuple(hourdata.columns))
     hourlist.grid(row=1, column=0, sticky="nsew")
     
     def add_services(root,hourdata,hourlist, hourlist_items, services):
@@ -668,36 +675,22 @@ def get_items(clientname,hourdata,services,lastdate,defaultservice = None):
     cal2.pack(fill="both", expand=True)
 
 
-    data_list =   hourdatacopy.values.tolist()
+    hourdatacopy_toshow = hourdatacopy.copy()
+    for col in hourdatacopy_toshow.select_dtypes(include=["datetime64[ns]"]).columns:
+        hourdatacopy_toshow[col] = hourdatacopy_toshow[col].dt.strftime('%d.%m.%Y')
+    data_list =   hourdatacopy_toshow.values.tolist()
     if lastdate:
         Title = tk.Label(right_frame, text=f"Die letzte Rechnung für {clientname} wurde am {pd.to_datetime(lastdate).strftime('%d.%m.%Y')} erstellt").pack(pady=10)
     head = hourdatacopy.columns.tolist()
     head.append("Leistung")
     head.append("Stundensatz")
-    datelist,datelist_item_ids = show_matrix_window(right_frame,data_list, head = head, defaultservice = defaultservice )
+    datelist,datelist_item_ids = show_matrix_window(right_frame,data_list, head = head, defaultservice = defaultservice, defaulthourlyrate = defaulthourlyrate )
+
+
     comboboxes_services = []
     inputs_prices = []
 
-    def place_comboboxes_services(treeview, treeview_item_ids, combobox_options,comboboxes_column):
-        for index, item_id in enumerate(treeview_item_ids):
-            bbox = treeview.bbox(item_id, column=comboboxes_column)
-            if not bbox:
-                continue
-            x, y, width, height = bbox
-            value = treeview.set(item_id, comboboxes_column)
 
-            cb = ttk.Combobox(treeview, values=combobox_options.tolist(), state="readonly")
-
-            def on_combobox_changed(e,item_id):
-                print(item_id)
-                selected = comboboxes_services[index].get()
-                print(selected)
-
-            cb.bind("<<ComboboxSelected>>",lambda e: on_combobox_changed(e,index))
-            cb.set(value)
-            cb.place(x=x, y=y, width=width, height=height)
-            #dont need to update the tree, all variable are taken then form the comboboxes
-            comboboxes_services.append(cb)
 
     def is_valid_float(value):
         """
@@ -714,16 +707,63 @@ def get_items(clientname,hourdata,services,lastdate,defaultservice = None):
         else: return True
     vcmd = (root.register(is_valid_float), "%P")
 
-    def place_inputs_prices(treeview, treeview_item_ids, inputs_column,defaulthourlyrate):
-        for index, item_id in enumerate(treeview_item_ids):
-            bbox = treeview.bbox(item_id, column=inputs_column)
-            if not bbox:
-                continue
-            x, y, width, height = bbox
-            entry = ttk.Entry(treeview, validate="key", validatecommand=vcmd)
-            entry.insert(0,defaulthourlyrate)
-            entry.place(x=x, y=y, width=width, height=height)
-            inputs_prices.append(entry)
+
+    def change_input(event, tree):
+        options = services["Leistung"]
+        combo = None
+        input = None
+
+        if tree.identify("region", event.x, event.y) != "cell":
+            return
+
+        column = tree.identify_column(event.x)
+
+        if column == "#5":
+            rowid = tree.identify_row(event.y)
+            if not rowid:
+                return
+
+            x, y, w, h = tree.bbox(rowid, column)
+
+            if combo:
+                combo.destroy()
+
+            combo = ttk.Combobox(tree, values=options.tolist(), state="readonly")
+            combo.place(x=x, y=y, width=w, height=h)
+            combo.set(tree.set(rowid, "Leistung"))
+            combo.focus()
+
+            def save_combo(event=None):
+                tree.set(rowid, "Leistung", combo.get())
+                combo.destroy()
+
+            combo.bind("<<ComboboxSelected>>", save_combo)
+            combo.bind("<FocusOut>", lambda e: combo.destroy())
+
+        if column == "#6":
+
+            rowid = tree.identify_row(event.y)
+            if not rowid:
+                return
+
+            x, y, w, h = tree.bbox(rowid, column)
+
+            if input:
+                input.destroy()
+
+            input = ttk.Entry(tree, validate="key", validatecommand=vcmd)
+            input.insert(0, defaulthourlyrate)
+            input.place(x=x, y=y, width=w, height=h)
+            input.focus()
+
+            def save_input(event=None):
+                tree.set(rowid, "Stundensatz", input.get())
+                input.destroy()
+            input.bind("<Return>", save_input)
+            input.bind("<FocusOut>", lambda e: input.destroy())
+
+    datelist.bind("<ButtonRelease-1>", lambda e: change_input(e,datelist))
+
     datelist.pack()
     # if dropdown menu doesnot show, make waittime longer (this is a bad workaround)
 
@@ -734,11 +774,6 @@ def get_items(clientname,hourdata,services,lastdate,defaultservice = None):
     #         place_inputs_prices(datelist, datelist_item_ids, "Stundensatz", defaulthourlyrate)
     #         return
     #     root.after(100,place_comboboxes_inputs_on_treeview_after_loading)
-    # place_comboboxes_inputs_on_treeview_after_loading()
-    waittimetoloadinputoverlay = 500
-
-    root.after(waittimetoloadinputoverlay, lambda: place_comboboxes_services(datelist,datelist_item_ids, services["Leistung"],"Leistung"))  # Wait for Treeview to render
-    root.after(waittimetoloadinputoverlay, lambda: place_inputs_prices(datelist,datelist_item_ids, "Stundensatz",defaulthourlyrate))  # Wait for Treeview to render
 
     def on_date_change(e,somedateselected):
         somedateselected.append(True)
@@ -754,22 +789,13 @@ def get_items(clientname,hourdata,services,lastdate,defaultservice = None):
     cal2.bind("<<CalendarSelected>>", lambda e: on_date_change(e, somedateselected))
 
     def on_ok(root,datelist,comboboxes_services,inputs_prices,hourdata,returndata):
-        all_items = datelist.get_children()
         selected_items = datelist.selection()  # returns a tuple of selected item IDs
 
         if selected_items:
-            matrix = hourdata.copy()
-            matrix = matrix.sort_values(by="Datum", ascending=False)
-            comboboxinput = [combobox.get() for combobox in comboboxes_services]
-            floatinputs = [input.get() for input in inputs_prices]
-
-            matrix["Leistung"] = comboboxinput
-            matrix["Stundensatz"] = floatinputs
-
-
-            for treerow, (index,matrixrow) in zip(all_items,matrix.iterrows()):
-                if treerow in selected_items:
-                    returndata.append(matrixrow.tolist())
+            selected_data = [list(datelist.item(row, "values")) for row in datelist.selection()]
+            for row in selected_data:
+                row[0] = pd.to_datetime(row[0],dayfirst=True)
+                returndata.append(row)
             root.destroy()
         else:
             errorlabel.config(text="Wähle mindestens ein Datum aus")
@@ -781,8 +807,11 @@ def get_items(clientname,hourdata,services,lastdate,defaultservice = None):
     root.mainloop()
 
     #this happens after root.destroy
+
     returndata = pd.DataFrame(returndata, columns=head)
     # check whether something was selected
+    date1 = returndata.Datum.min()
+    date2 = returndata.Datum.max()
     if not np.any(somedateselected):
         date1 = returndata.Datum.min()
         date2 = returndata.Datum.max()
@@ -792,6 +821,7 @@ def get_items(clientname,hourdata,services,lastdate,defaultservice = None):
         date1 = pd.to_datetime(date1)
         date2 = pd.to_datetime(date2)
 
+    print(date1, date2)
     return returndata, date1, date2
 
 
